@@ -171,3 +171,4 @@ echo
 echo " 下一步"
 echo "   Master 节点： kubeadm init"
 echo "   Worker 节点：
+
