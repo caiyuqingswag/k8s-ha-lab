@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+source ./00-env.sh
 echo "==> Install Kubernetes ${K8S_VERSION}"
 
 cat >/etc/yum.repos.d/kubernetes.repo <<EOF

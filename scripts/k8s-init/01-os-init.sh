@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+source ./00-env.sh
 echo "================================================="
 echo " Rocky Linux 9.7 - Kubernetes Node Bootstrap"
 echo "================================================="
