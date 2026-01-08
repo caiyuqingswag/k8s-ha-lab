@@ -20,6 +20,7 @@ dnf install -y \
   unzip \
   sudo \
   vim \
+  bash-completion  \
   conntrack-tools \
   ipvsadm \
   socat \

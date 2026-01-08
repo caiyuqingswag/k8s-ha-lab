@@ -26,6 +26,12 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cp "${SCRIPT_DIR}/config.toml" /etc/containerd/config.toml
 
+cat >/etc/crictl.yaml <<'EOF'
+runtime-endpoint: unix:///var/run/containerd/containerd.sock
+image-endpoint: unix:///var/run/containerd/containerd.sock
+timeout: 10
+debug: false
+EOF
 
 
 ########################################
