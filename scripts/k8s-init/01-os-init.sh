@@ -4,8 +4,6 @@ source ./00-env.sh
 
 echo "==> System update & base packages"
 
-dnf update -y
-
 dnf install -y \
   device-mapper-persistent-data \
   lvm2 \
@@ -80,3 +78,4 @@ rtcsync
 EOF
 
 systemctl enable --now chronyd
+
