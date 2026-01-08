@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-source ./00-env.sh
 
 echo "==> Install Kubernetes ${K8S_VERSION}"
 
