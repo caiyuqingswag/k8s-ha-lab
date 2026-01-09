@@ -1,5 +1,14 @@
 #!/bin/bash
 set -e
+#!/bin/bash
+set -e
+
+read -p "是否以这台服务器为 Keepalived BACK？是请输入 yes: " CONFIRM
+if [ "$CONFIRM" != "yes" ]; then
+    echo "未确认 BACK，脚本退出。"
+    exit 1
+fi
+
 
 VIP="172.16.15.50/24"
 INTERFACE="ens3"   # ⚠️ 改成你真实网卡名
