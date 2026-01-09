@@ -10,6 +10,8 @@ dnf config-manager --add-repo \
   https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 
 
+#containerd containerd.io v2.2.1 dea7da592f5d1d2b7755e3a161be07f43fad8f75
+
 dnf install -y containerd
 
 ########################################
