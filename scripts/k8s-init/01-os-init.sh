@@ -27,7 +27,8 @@ dnf install -y \
   socat \
   chrony \
   yum-utils \
-  nftables
+  nftables  \
+  tar \
 
 ########################################
 # 系统基础设置
