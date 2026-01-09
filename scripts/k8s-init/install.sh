@@ -6,9 +6,10 @@ set -e
 ########################################
 echo "================================================="
 echo "【重要确认】在继续之前请确认以下事项："
-echo "你是否已经手动执行过主机命名？如果没有，请输入：hostnamectl set-hostname 主机的名字 && exec bash"
+echo "你是否已经手动执行过主机命名？如果没有，请输入："
+echo " hostnamectl set-hostname 主机的名字 && exec bash"
 echo "你是否已经手动执行过："
-echo "  dnf -y update"
+echo " dnf -y update"
 echo
 echo "如果更新过程中升级了内核，是否已经【重启过系统】？"
 echo
@@ -41,4 +42,5 @@ chmod +x ./*.sh
 
 
 echo " Rocky Linux 9 Kubernetes 节点初始化完成"
+echo " 请reboot机器刷新配置"
 echo "================================================="
