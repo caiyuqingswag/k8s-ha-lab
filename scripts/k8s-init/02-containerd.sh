@@ -28,44 +28,94 @@ cp "${SCRIPT_DIR}/config.toml" /etc/containerd/config.toml
 ########################################
 # 2.1 写入镜像加速配置（containerd v3 结构）
 ########################################
-cat >/etc/containerd/conf.d/registry-mirrors.toml <<'EOF'
-version = 2
+mkdir -p /etc/containerd/certs.d/docker.io
+cat > /etc/containerd/certs.d/docker.io/hosts.toml <<'EOF'
+server = "https://docker.io"
 
-[plugins."io.containerd.cri.v1.images".registry.mirrors]
+[host."https://docker.m.daocloud.io"]
+  capabilities = ["pull", "resolve"]
 
-  [plugins."io.containerd.cri.v1.images".registry.mirrors."docker.io"]
-    endpoint = [
-      "https://docker.m.daocloud.io",
-      "https://ccr.ccs.tencentyun.com",
-      "https://docker.1ms.run",
-      "https://dhub.kubesre.xyz",
-      "https://docker.kejilion.pro",
-      "https://docker.xuanyuan.me",
-      "https://docker.hlmirror.com",
-      "https://docker.melikeme.cn"
-    ]
+[host."https://ccr.ccs.tencentyun.com"]
+  capabilities = ["pull", "resolve"]
 
-  [plugins."io.containerd.cri.v1.images".registry.mirrors."registry.k8s.io"]
-    endpoint = [
-      "https://docker.m.daocloud.io",
-      "https://ccr.ccs.tencentyun.com",
-      "https://docker.1ms.run",
-      "https://dhub.kubesre.xyz",
-      "https://docker.kejilion.pro",
-      "https://docker.xuanyuan.me",
-      "https://docker.hlmirror.com",
-      "https://docker.melikeme.cn"
-    ]
+[host."https://docker.1ms.run"]
+  capabilities = ["pull", "resolve"]
 
-  [plugins."io.containerd.cri.v1.images".registry.mirrors."gcr.io"]
-    endpoint = ["https://docker.m.daocloud.io"]
+[host."https://dhub.kubesre.xyz"]
+  capabilities = ["pull", "resolve"]
 
-  [plugins."io.containerd.cri.v1.images".registry.mirrors."ghcr.io"]
-    endpoint = ["https://docker.m.daocloud.io"]
+[host."https://docker.kejilion.pro"]
+  capabilities = ["pull", "resolve"]
 
-  [plugins."io.containerd.cri.v1.images".registry.mirrors."quay.io"]
-    endpoint = ["https://docker.m.daocloud.io"]
+[host."https://docker.xuanyuan.me"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://docker.hlmirror.com"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://docker.melikeme.cn"]
+  capabilities = ["pull", "resolve"]
 EOF
+
+
+mkdir -p /etc/containerd/certs.d/registry.k8s.io
+cat > /etc/containerd/certs.d/registry.k8s.io/hosts.toml <<'EOF'
+server = "https://registry.k8s.io"
+
+[host."https://docker.m.daocloud.io"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://ccr.ccs.tencentyun.com"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://docker.1ms.run"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://dhub.kubesre.xyz"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://docker.kejilion.pro"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://docker.xuanyuan.me"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://docker.hlmirror.com"]
+  capabilities = ["pull", "resolve"]
+
+[host."https://docker.melikeme.cn"]
+  capabilities = ["pull", "resolve"]
+EOF
+
+
+mkdir -p /etc/containerd/certs.d/gcr.io
+cat > /etc/containerd/certs.d/gcr.io/hosts.toml <<'EOF'
+server = "https://gcr.io"
+
+[host."https://docker.m.daocloud.io"]
+  capabilities = ["pull", "resolve"]
+EOF
+
+
+mkdir -p /etc/containerd/certs.d/ghcr.io
+cat > /etc/containerd/certs.d/ghcr.io/hosts.toml <<'EOF'
+server = "https://ghcr.io"
+
+[host."https://docker.m.daocloud.io"]
+  capabilities = ["pull", "resolve"]
+EOF
+
+
+mkdir -p /etc/containerd/certs.d/quay.io
+cat > /etc/containerd/certs.d/quay.io/hosts.toml <<'EOF'
+server = "https://quay.io"
+
+[host."https://docker.m.daocloud.io"]
+  capabilities = ["pull", "resolve"]
+EOF
+
+
+
 
 ########################################
 # 3. crictl 配置
