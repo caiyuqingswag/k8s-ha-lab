@@ -52,6 +52,7 @@ systemctl disable --now firewalld || true
 echo "==> Configure kernel modules (no IPVS)"
 
 cat >/etc/modules-load.d/k8s.conf <<'EOF'
+bridge
 br_netfilter
 nf_conntrack
 EOF

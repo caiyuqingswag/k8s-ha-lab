@@ -74,6 +74,7 @@
   copy:
     dest: /etc/modules-load.d/k8s.conf
     content: |
+      bridge
       br_netfilter
       nf_conntrack
     mode: "0644"
