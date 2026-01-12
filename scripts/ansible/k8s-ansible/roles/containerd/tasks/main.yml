@@ -75,13 +75,3 @@
     enabled: true
     state: started
 
-handlers:
-  - name: Restart containerd
-    systemd:
-      name: containerd
-      state: restarted
-
-  - name: Restart journald
-    systemd:
-      name: systemd-journald
-      state: restarted
