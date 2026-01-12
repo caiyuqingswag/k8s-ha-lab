@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-NFS_DIR="/data"
+NFS_DIR="/data/jiyan/"
 
 echo "⚠️ 你确定要把【当前服务器】作为 NFS 服务端吗？"
 echo "共享目录将会是: $NFS_DIR"
