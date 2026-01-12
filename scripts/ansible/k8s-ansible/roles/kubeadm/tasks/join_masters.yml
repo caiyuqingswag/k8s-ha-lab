@@ -1,0 +1,11 @@
+- name: Check if already joined
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubeletconf
+
+- name: Join as control-plane
+  command: >
+    {{ hostvars['172.16.15.51'].join_command_worker }}
+    --control-plane
+    --certificate-key {{ hostvars['172.16.15.51'].certificate_key }}
+  when: not kubeletconf.stat.exists

@@ -1,0 +1,10 @@
+- name: Copy Calico manifest (your verified file)
+  copy:
+    src: calico-v3.31.3.yaml
+    dest: /root/calico.yaml
+    mode: "0644"
+
+- name: Apply Calico
+  command: kubectl apply -f /root/calico.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf

@@ -12,7 +12,7 @@ fi
 
 
 VIP="172.16.15.50/24"
-INTERFACE="ens3"   # ⚠️ 改成你真实网卡名
+INTERFACE="ens3"
 
 
 MASTER1="172.16.15.51"

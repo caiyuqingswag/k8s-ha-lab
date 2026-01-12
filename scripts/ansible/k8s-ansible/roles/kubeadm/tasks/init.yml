@@ -1,0 +1,37 @@
+- name: Check if already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: adminconf
+
+- name: Render kubeadm.yaml
+  template:
+    src: kubeadm.yaml.j2
+    dest: /root/kubeadm.yaml
+    mode: "0644"
+  when: not adminconf.stat.exists
+
+- name: kubeadm init
+  command: kubeadm init --config=/root/kubeadm.yaml
+  when: not adminconf.stat.exists
+
+- name: Setup kubectl for root
+  shell: |
+    mkdir -p /root/.kube
+    cp -f /etc/kubernetes/admin.conf /root/.kube/config
+  args:
+    creates: /root/.kube/config
+
+- name: Upload certs and get certificate-key
+  command: kubeadm init phase upload-certs --upload-certs
+  register: upload_certs
+  changed_when: false
+
+- name: Get join command
+  command: kubeadm token create --print-join-command
+  register: join_cmd
+  changed_when: false
+
+- name: Save join info for other nodes
+  set_fact:
+    join_command_worker: "{{ join_cmd.stdout }}"
+    certificate_key: "{{ (upload_certs.stdout_lines | last) }}"

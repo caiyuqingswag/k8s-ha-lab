@@ -1,0 +1,66 @@
+- name: Common OS init (all)
+  hosts: all
+  become: true
+  roles:
+    - common
+  tags: common
+
+
+- name: Deploy Nginx + Keepalived LB
+  hosts: lb_master,lb_backup
+  become: true
+  roles:
+    - lb
+  tags: lb
+
+
+- name: Install containerd (all)
+  hosts: all
+  become: true
+  roles:
+    - containerd
+  tags: containerd
+
+
+- name: Install kubelet/kubeadm/kubectl (all)
+  hosts: all
+  become: true
+  roles:
+    - kube
+  tags: kube
+
+
+- name: Kubeadm init on master1 and apply Calico
+  hosts: 172.16.15.51
+  become: true
+  tasks:
+    - import_role:
+        name: kubeadm
+        tasks_from: init.yml
+
+    - import_role:
+        name: cni
+  tags: init
+
+
+- name: Join other masters (control-plane)
+  hosts: masters
+  become: true
+  serial: 1
+  tasks:
+    - when: inventory_hostname != "172.16.15.51"
+      import_role:
+        name: kubeadm
+        tasks_from: join_masters.yml
+  tags: join_masters
+
+
+- name: Join workers
+  hosts: nodes
+  become: true
+  serial: 10
+  tasks:
+    - import_role:
+        name: kubeadm
+        tasks_from: join_workers.yml
+  tags: join_workers

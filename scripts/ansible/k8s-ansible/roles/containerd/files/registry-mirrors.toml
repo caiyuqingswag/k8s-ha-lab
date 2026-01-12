@@ -1,0 +1,36 @@
+version = 2
+
+[plugins."io.containerd.cri.v1.images".registry.mirrors]
+
+[plugins."io.containerd.cri.v1.images".registry.mirrors."docker.io"]
+endpoint = [
+    "https://docker.m.daocloud.io",
+    "https://ccr.ccs.tencentyun.com",
+    "https://docker.1ms.run",
+    "https://dhub.kubesre.xyz",
+    "https://docker.kejilion.pro",
+    "https://docker.xuanyuan.me",
+    "https://docker.hlmirror.com",
+    "https://docker.melikeme.cn"
+]
+
+[plugins."io.containerd.cri.v1.images".registry.mirrors."registry.k8s.io"]
+endpoint = [
+    "https://docker.m.daocloud.io",
+    "https://ccr.ccs.tencentyun.com",
+    "https://docker.1ms.run",
+    "https://dhub.kubesre.xyz",
+    "https://docker.kejilion.pro",
+    "https://docker.xuanyuan.me",
+    "https://docker.hlmirror.com",
+    "https://docker.melikeme.cn"
+]
+
+[plugins."io.containerd.cri.v1.images".registry.mirrors."gcr.io"]
+endpoint = ["https://docker.m.daocloud.io"]
+
+[plugins."io.containerd.cri.v1.images".registry.mirrors."ghcr.io"]
+endpoint = ["https://docker.m.daocloud.io"]
+
+[plugins."io.containerd.cri.v1.images".registry.mirrors."quay.io"]
+endpoint = ["https://docker.m.daocloud.io"]

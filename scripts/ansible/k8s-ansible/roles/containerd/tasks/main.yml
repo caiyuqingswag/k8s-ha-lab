@@ -1,0 +1,66 @@
+- name: Add docker-ce repo (Aliyun)
+  command: dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo
+
+- name: Install containerd
+  dnf:
+    name: containerd
+    state: present
+
+- name: Ensure containerd dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/containerd
+    - /etc/containerd/conf.d
+
+- name: Deploy containerd config.toml
+  copy:
+    src: config.toml
+    dest: /etc/containerd/config.toml
+    mode: "0644"
+
+- name: Deploy registry mirrors config
+  copy:
+    src: registry-mirrors.toml
+    dest: /etc/containerd/conf.d/registry-mirrors.toml
+    mode: "0644"
+
+- name: Configure crictl
+  copy:
+    dest: /etc/crictl.yaml
+    content: |
+      runtime-endpoint: unix:///var/run/containerd/containerd.sock
+      image-endpoint: unix:///var/run/containerd/containerd.sock
+      timeout: 10
+      debug: false
+    mode: "0644"
+
+- name: Configure journald log rotation
+  copy:
+    dest: /etc/systemd/journald.conf.d/99-k8s.conf
+    content: |
+      [Journal]
+      Storage=persistent
+      Compress=yes
+      SystemMaxUse=1G
+      SystemKeepFree=2G
+      SystemMaxFileSize=100M
+      SystemMaxFiles=10
+      MaxRetentionSec=30day
+      MaxFileSec=7day
+    mode: "0644"
+
+- name: Restart journald
+  systemd:
+    name: systemd-journald
+    state: restarted
+
+- name: Reload systemd and enable containerd
+  systemd:
+    name: containerd
+    enabled: true
+    state: started
