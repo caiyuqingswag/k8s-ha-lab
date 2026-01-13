@@ -5,6 +5,6 @@ HOST             BEFORE_KERNEL                           AFTER_KERNEL           
 {%- set ch = ('YES' if (hostvars[h].kernel_changed | default(false)) else 'NO') -%}
 {%- set rn = ('YES' if (hostvars[h].reboot_needed | default(false)) else 'NO') -%}
 {%- set is_ctl = (hostvars[h].is_control_node | default(false)) -%}
-{%- set rnow = ('NO (control)' if is_ctl else ('YES' if (hostvars[h].reboot_needed | default(false)) else 'NO')) -%}
+{%- set rnow = ('NO (control)' if is_ctl else ('YES' if (hostvars[h].system_update_reboot | default(true) and hostvars[h].reboot_needed | default(false)) else 'NO')) -%}
 {{ "%-16s %-38s %-38s %-7s %-13s %-10s"|format(h, kb, ka, ch, rn, rnow) }}
 {% endfor %}

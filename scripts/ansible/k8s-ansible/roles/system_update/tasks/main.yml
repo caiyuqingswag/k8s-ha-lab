@@ -34,7 +34,7 @@
   set_fact:
     reboot_needed: >-
       {{
-        (not system_update_reboot_only_if_needed) or
+        (not (system_update_reboot_only_if_needed | default(true))) or
         (reboot_required is defined and reboot_required.rc != 0)
       }}
 
