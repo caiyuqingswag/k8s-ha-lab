@@ -10,6 +10,8 @@
 - name: Generate summary report on control node (txt table)
   hosts: localhost
   gather_facts: false
+  vars:
+    system_update_report_dir: "{{ hostvars[groups['masters'][0]].system_update_report_dir | default('./upgrade-reports') }}"
   tasks:
     - name: Ensure report directory exists
       file:
@@ -68,8 +70,8 @@
 
 - name: Kubeadm init on master1 and apply Calico
   hosts: "{{ groups['masters'][0] }}"
-  serial: 1
   become: true
+  serial: 1
   tasks:
     - import_role:
         name: kubeadm
@@ -83,11 +85,11 @@
   hosts: masters
   become: true
   serial: 1
-  tags: join_masters
   tasks:
     - import_role:
         name: kubeadm
         tasks_from: join_masters.yml
+  tags: join_masters
 
 - name: Join workers
   hosts: nodes
