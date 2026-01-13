@@ -1,5 +1,13 @@
-    ##先执行update
-ansible-playbook -i inventory.ini site.yml --tag update
+    ##顺序执行update
+ansible-playbook -i inventory.ini site.yml --tags update -f 6  
+
+    ##重启然后继续执行
+ansible-playbook -i inventory.ini site.yml --tags common
+ansible-playbook -i inventory.ini site.yml --tags lb
+
+
+
+
 
     ##一键执行
 cd k8s-ansible

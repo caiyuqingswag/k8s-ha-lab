@@ -3,6 +3,28 @@
   args:
     creates: /etc/yum.repos.d/docker-ce.repo
 
+- name: Copy crictl package to nodes
+  copy:
+    src: crictl-v1.34.0-linux-amd64.tar.gz
+    dest: /tmp/crictl.tar.gz
+    mode: "0644"
+
+- name: Extract crictl
+  unarchive:
+    src: /tmp/crictl.tar.gz
+    dest: /usr/local/bin
+    remote_src: yes
+
+- name: Ensure crictl is executable
+  file:
+    path: /usr/local/bin/crictl
+    mode: "0755"
+
+- name: Verify crictl
+  command: /usr/local/bin/crictl version
+  register: crictl_check
+  changed_when: false
+
 - name: Install containerd
   dnf:
     name: containerd
