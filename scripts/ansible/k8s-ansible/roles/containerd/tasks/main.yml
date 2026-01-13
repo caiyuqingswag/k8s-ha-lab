@@ -21,11 +21,6 @@
     path: /usr/local/bin/crictl
     mode: "0755"
 
-- name: Verify crictl
-  command: /usr/local/bin/crictl version
-  register: crictl_check
-  changed_when: false
-
 - name: Install containerd
   dnf:
     name: containerd
@@ -209,3 +204,7 @@
     enabled: true
     state: started
 
+- name: Verify crictl
+  command: /usr/local/bin/crictl version
+  register: crictl_check
+  changed_when: false
