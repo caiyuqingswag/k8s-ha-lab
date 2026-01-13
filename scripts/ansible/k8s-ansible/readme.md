@@ -1,12 +1,15 @@
     ##顺序执行update
-ansible-playbook -i inventory.ini site.yml --tags update -f 6  
+ansible-playbook -i inventory.ini site.yml --tags update -f 6  -vv
 
     ##重启然后继续执行
-ansible-playbook -i inventory.ini site.yml --tags common
-ansible-playbook -i inventory.ini site.yml --tags lb
-ansible-playbook -i inventory.ini site.yml --tags containerd
-ansible-playbook -i inventory.ini site.yml --tags kube
-ansible-playbook -i inventory.ini site.yml --tags init
+ansible-playbook -i inventory.ini site.yml --tags common -vv
+ansible-playbook -i inventory.ini site.yml --tags lb -vv
+ansible-playbook -i inventory.ini site.yml --tags containerd -vv
+ansible-playbook -i inventory.ini site.yml --tags kube -vv
+ansible-playbook -i inventory.ini site.yml --tags init -vv
+ansible-playbook -i inventory.ini site.yml --tags join_masters -vv
+ansible-playbook -i inventory.ini site.yml --tags join_workers -vv
+
 
 
 
