@@ -28,7 +28,7 @@
     - update
 
 - name: Reboot control node last (delayed, so ansible can finish)
-  hosts: "{{ system_update_control_host }}"
+  hosts: "{{ groups['masters'][0] }}"
   become: true
   gather_facts: false
   tasks:
