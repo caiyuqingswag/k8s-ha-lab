@@ -36,7 +36,6 @@
       - conntrack-tools
       - socat
       - chrony
-      - yum-utils
       - nftables
       - tar
     state: present

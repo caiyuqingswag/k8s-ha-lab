@@ -1,3 +1,45 @@
+- name: System update and kernel upgrade (parallel)
+  hosts: all
+  become: true
+  strategy: free
+  roles:
+    - system_update
+  tags:
+    - update
+
+- name: Generate summary report on control node (txt table)
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Ensure report directory exists
+      file:
+        path: "./upgrade-reports"
+        state: directory
+        mode: "0755"
+
+    - name: Write summary.txt
+      template:
+        src: roles/system_update/templates/summary.j2
+        dest: "./upgrade-reports/summary.txt"
+        mode: "0644"
+  tags:
+    - update
+
+- name: Reboot control node last (delayed, so ansible can finish)
+  hosts: 172.16.15.51
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Schedule delayed reboot on control node if needed
+      command: "systemd-run --on-active={{ hostvars[inventory_hostname].system_update_control_reboot_delay_seconds | default(60) }}s /usr/sbin/reboot"
+      when:
+        - hostvars[inventory_hostname].system_update_reboot | default(true)
+        - hostvars[inventory_hostname].reboot_needed | default(false)
+  tags:
+    - update
+
+
+
 - name: Common OS init (all)
   hosts: all
   become: true

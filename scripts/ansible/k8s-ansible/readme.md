@@ -1,5 +1,5 @@
-    ##先执行lb
-ansible-playbook -i inventory.ini site.yml --limit lb_master,lb_backup
+    ##先执行update
+ansible-playbook -i inventory.ini site.yml --tag update
 
     ##一键执行
 cd k8s-ansible
