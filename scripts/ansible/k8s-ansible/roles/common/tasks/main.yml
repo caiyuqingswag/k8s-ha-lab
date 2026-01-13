@@ -1,17 +1,17 @@
 - name: Set hostname
   hostname:
-    name: "{{ hostname }}"
+    name: "{{ inventory_hostname }}"
 
 - name: Build hosts file content
   set_fact:
     hosts_block: |
-      127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
-      ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+      127.0.0.1   localhost localhost.localdomain
+      ::1         localhost localhost.localdomain
       {% for h in groups['masters'] %}
-      {{ h }} {{ hostvars[h].hostname }}
+      {{ hostvars[h].ansible_host }} {{ h }}
       {% endfor %}
       {% for h in groups['nodes'] %}
-      {{ h }} {{ hostvars[h].hostname }}
+      {{ hostvars[h].ansible_host }} {{ h }}
       {% endfor %}
 
 - name: Update /etc/hosts
@@ -19,6 +19,8 @@
     dest: /etc/hosts
     content: "{{ hosts_block }}"
     mode: "0644"
+  diff: true
+
 
 - name: Install base packages (nftables-only, no IPVS)
   dnf:

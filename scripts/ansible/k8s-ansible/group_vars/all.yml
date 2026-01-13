@@ -13,6 +13,9 @@ control_plane_endpoint: "172.16.15.50:16443"
 kubeproxy_mode: "nftables"
 cgroup_driver: "systemd"
 
+#system_update的控制台兼master1
+system_update_control_host: master1
+
 
 vip: "172.16.15.50/24"
 vip_port: 16443
