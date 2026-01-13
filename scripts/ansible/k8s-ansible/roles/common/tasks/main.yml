@@ -47,11 +47,11 @@
   failed_when: false
   changed_when: false
 
-- name: Disable SELinux config
+- name: Set SELinux permissive config
   lineinfile:
     path: /etc/selinux/config
     regexp: '^SELINUX='
-    line: 'SELINUX=disabled'
+    line: 'SELINUX=permissive'
 
 - name: Disable swap runtime
   command: swapoff -a
