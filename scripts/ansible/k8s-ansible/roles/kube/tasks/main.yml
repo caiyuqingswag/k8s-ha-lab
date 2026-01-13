@@ -13,23 +13,33 @@
   command: dnf makecache -y
   changed_when: false
 
-- name: Install kubelet/kubeadm/kubectl (pinned)
+- name: Install kubelet and kubeadm (all nodes)
   dnf:
     name:
       - "kubelet-{{ k8s_version }}"
       - "kubeadm-{{ k8s_version }}"
-      - "kubectl-{{ k8s_version }}"
     state: present
+
+
+- name: Install kubectl (masters only)
+  dnf:
+    name: "kubectl-{{ k8s_version }}"
+    state: present
+  when: "'masters' in group_names"
+
 
 - name: Enable kubelet
   systemd:
     name: kubelet
     enabled: true
 
-- name: Pre-pull images (best effort)
+
+- name: Pre-pull images (masters only)
   command: >
     kubeadm config images pull
     --kubernetes-version={{ k8s_version }}
     --image-repository={{ image_repo }}
+  when: "'masters' in group_names"
   changed_when: false
   failed_when: false
+
