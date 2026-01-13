@@ -89,12 +89,13 @@
   hosts: masters
   become: true
   serial: 1
+  tags: join_masters
   tasks:
-    - when: inventory_hostname != "172.16.15.51"
-      import_role:
+    - import_role:
         name: kubeadm
         tasks_from: join_masters.yml
-  tags: join_masters
+
+
 
 
 - name: Join workers

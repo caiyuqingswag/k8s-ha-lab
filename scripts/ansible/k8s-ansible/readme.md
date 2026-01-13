@@ -4,6 +4,9 @@ ansible-playbook -i inventory.ini site.yml --tags update -f 6
     ##重启然后继续执行
 ansible-playbook -i inventory.ini site.yml --tags common
 ansible-playbook -i inventory.ini site.yml --tags lb
+ansible-playbook -i inventory.ini site.yml --tags containerd
+ansible-playbook -i inventory.ini site.yml --tags kube
+ansible-playbook -i inventory.ini site.yml --tags init
 
 
 

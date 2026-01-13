@@ -3,6 +3,7 @@
     path: /etc/kubernetes/kubelet.conf
   register: kubeletconf
 
-- name: Join as worker
-  command: "{{ hostvars['172.16.15.51'].join_command_worker }}"
+- name: Join worker
+  command: "{{ hostvars['k8s_cluster'].join_command }}"
   when: not kubeletconf.stat.exists
+
