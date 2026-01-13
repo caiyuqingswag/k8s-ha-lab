@@ -13,32 +13,30 @@
   tasks:
     - name: Ensure report directory exists
       file:
-        path: "./upgrade-reports"
+        path: "{{ system_update_report_dir }}"
         state: directory
         mode: "0755"
 
     - name: Write summary.txt
       template:
         src: roles/system_update/templates/summary.j2
-        dest: "./upgrade-reports/summary.txt"
+        dest: "{{ system_update_report_dir }}/summary.txt"
         mode: "0644"
   tags:
     - update
 
 - name: Reboot control node last (delayed, so ansible can finish)
-  hosts: 172.16.15.51
+  hosts: "{{ system_update_control_host }}"
   become: true
   gather_facts: false
   tasks:
     - name: Schedule delayed reboot on control node if needed
-      command: "systemd-run --on-active={{ hostvars[inventory_hostname].system_update_control_reboot_delay_seconds | default(60) }}s /usr/sbin/reboot"
+      command: "systemd-run --on-active={{ system_update_control_reboot_delay_seconds | default(60) }}s /usr/sbin/reboot"
       when:
-        - hostvars[inventory_hostname].system_update_reboot | default(true)
-        - hostvars[inventory_hostname].reboot_needed | default(false)
+        - system_update_reboot | default(true)
+        - reboot_needed | default(false)
   tags:
     - update
-
-
 
 - name: Common OS init (all)
   hosts: all
@@ -47,14 +45,12 @@
     - common
   tags: common
 
-
 - name: Deploy Nginx + Keepalived LB
   hosts: lb_master,lb_backup
   become: true
   roles:
     - lb
   tags: lb
-
 
 - name: Install containerd (all)
   hosts: all
@@ -63,7 +59,6 @@
     - containerd
   tags: containerd
 
-
 - name: Install kubelet/kubeadm/kubectl (all)
   hosts: all
   become: true
@@ -71,9 +66,8 @@
     - kube
   tags: kube
 
-
 - name: Kubeadm init on master1 and apply Calico
-  hosts: 172.16.15.51
+  hosts: "{{ groups['masters'][0] }}"
   become: true
   tasks:
     - import_role:
@@ -84,7 +78,6 @@
         name: cni
   tags: init
 
-
 - name: Join other masters (control-plane)
   hosts: masters
   become: true
@@ -94,9 +87,6 @@
     - import_role:
         name: kubeadm
         tasks_from: join_masters.yml
-
-
-
 
 - name: Join workers
   hosts: nodes

@@ -5,8 +5,8 @@
 - name: Build hosts file content
   set_fact:
     hosts_block: |
-      127.0.0.1   localhost localhost.localdomain
-      ::1         localhost localhost.localdomain
+      127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+      ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
       {% for h in groups['masters'] %}
       {{ hostvars[h].ansible_host }} {{ h }}
       {% endfor %}

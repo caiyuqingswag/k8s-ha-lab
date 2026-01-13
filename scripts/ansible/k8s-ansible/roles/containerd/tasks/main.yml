@@ -14,6 +14,7 @@
     src: /tmp/crictl.tar.gz
     dest: /usr/local/bin
     remote_src: yes
+    creates: /usr/local/bin/crictl
 
 - name: Ensure crictl is executable
   file:

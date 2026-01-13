@@ -8,7 +8,7 @@ system_update_reboot: true
 system_update_reboot_only_if_needed: true
 
 # 控制机（ansible 控制端）IP：用于跳过即时 reboot，最后再延迟重启
-system_update_control_ip: "172.16.15.51"
+system_update_control_host: "master1"
 
 # 控制机延迟重启秒数（确保 playbook 能结束并写 summary）
 system_update_control_reboot_delay_seconds: 60

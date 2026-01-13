@@ -1,6 +1,7 @@
 - name: Skip system update if disabled
   meta: end_host
-  when: not system_update_enabled
+  when: not (system_update_enabled | default(true))
+
 
 - name: Mark whether this host is the Ansible control node
   set_fact:
@@ -27,7 +28,7 @@
   register: reboot_required
   failed_when: false
   changed_when: false
-  when: system_update_reboot_only_if_needed
+  when: system_update_reboot_only_if_needed | default(true)
 
 - name: Decide reboot_needed flag
   set_fact:
@@ -68,6 +69,13 @@
       Reboot needed: {{ 'YES' if reboot_needed else 'NO' }}
       Reboot executed now: {{ 'NO (control node)' if is_control_node else ('YES' if (system_update_reboot and reboot_needed) else 'NO') }}
       Time: {{ ansible_date_time.iso8601 }}
+
+- name: Ensure report dir exists on control node
+  delegate_to: localhost
+  file:
+    path: "{{ system_update_report_dir }}"
+    state: directory
+    mode: "0755"
 
 - name: Save per-host report on control node
   delegate_to: localhost

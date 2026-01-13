@@ -20,19 +20,17 @@
       - "kubeadm-{{ k8s_version }}"
     state: present
 
-
 - name: Install kubectl (masters only)
   dnf:
     name: "kubectl-{{ k8s_version }}"
     state: present
   when: "'masters' in group_names"
 
-
-- name: Enable kubelet
+- name: Enable and start kubelet
   systemd:
     name: kubelet
     enabled: true
-
+    state: started
 
 - name: Pre-pull images (masters only)
   command: >
