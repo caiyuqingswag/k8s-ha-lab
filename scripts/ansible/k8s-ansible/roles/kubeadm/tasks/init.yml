@@ -3,20 +3,21 @@
     path: /etc/kubernetes/admin.conf
   register: adminconf
 
+# 只在第一台 master 渲染并 init
 - name: Render kubeadm.yaml
   template:
     src: kubeadm.yaml.j2
     dest: /root/kubeadm.yaml
     mode: "0644"
   when:
-    - not adminconf.stat.exists
     - inventory_hostname == groups['masters'][0]
+    - not adminconf.stat.exists
 
 - name: kubeadm init
   command: kubeadm init --config=/root/kubeadm.yaml
   when:
-    - not adminconf.stat.exists
     - inventory_hostname == groups['masters'][0]
+    - not adminconf.stat.exists
 
 - name: Setup kubectl for root
   shell: |
@@ -26,21 +27,23 @@
     creates: /root/.kube/config
   when: inventory_hostname == groups['masters'][0]
 
-- name: Upload certs and get certificate-key
+# 无论是否刚 init，都确保拿到可用 join 信息
+# （token/cert-key 可能会过期或可能只跑 join tags）
+- name: Upload certs and get certificate-key (control-plane join)
   command: kubeadm init phase upload-certs --upload-certs
   register: upload_certs
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Get join command
+- name: Get join command (worker join base command)
   command: kubeadm token create --print-join-command
   register: join_cmd
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Save join info for other nodes
+- name: Save cluster join info globally (k8s_cluster host)
   add_host:
     name: k8s_cluster
-    join_command: "{{ join_cmd.stdout }}"
-    certificate_key: "{{ upload_certs.stdout_lines | last }}"
+    join_command: "{{ join_cmd.stdout | mandatory }}"
+    certificate_key: "{{ (upload_certs.stdout_lines | last) | mandatory }}"
   when: inventory_hostname == groups['masters'][0]

@@ -1,37 +1,40 @@
-- name: Generate join command
-  shell: kubeadm token create --print-join-command
-  register: join_cmd
-  run_once: true
-  when: inventory_hostname == groups['masters'][0]
-  tags: join_masters
-
-- name: Upload certs
-  shell: kubeadm init phase upload-certs --upload-certs
-  register: cert_out
-  run_once: true
-  when: inventory_hostname == groups['masters'][0]
-  tags: join_masters
-
-- name: Save cluster join info
-  add_host:
-    name: k8s_cluster
-    join_command: "{{ join_cmd.stdout }}"
-    certificate_key: "{{ cert_out.stdout_lines[-1] }}"
-  run_once: true
-  when: inventory_hostname == groups['masters'][0]
-  tags: join_masters
-
 - name: Check if already joined
   stat:
     path: /etc/kubernetes/kubelet.conf
   register: kubeletconf
   tags: join_masters
 
+# 若未注入 k8s_cluster（比如只跑 --tags join_masters），自动从第一台 master 拉取 join 信息
+- name: Ensure cluster join info is available (fetch from first master if missing)
+  block:
+    - name: Fetch join command from first master
+      command: kubeadm token create --print-join-command
+      register: _join_cmd
+      changed_when: false
+      delegate_to: "{{ groups['masters'][0] }}"
+      run_once: true
+
+    - name: Fetch certificate key from first master
+      command: kubeadm init phase upload-certs --upload-certs
+      register: _cert_out
+      changed_when: false
+      delegate_to: "{{ groups['masters'][0] }}"
+      run_once: true
+
+    - name: Publish join info to k8s_cluster
+      add_host:
+        name: k8s_cluster
+        join_command: "{{ _join_cmd.stdout | mandatory }}"
+        certificate_key: "{{ (_cert_out.stdout_lines | last) | mandatory }}"
+      run_once: true
+  when: hostvars['k8s_cluster'] is not defined
+  tags: join_masters
+
 - name: Join as control-plane
   command: >
-    {{ hostvars['k8s_cluster'].join_command }}
+    {{ hostvars['k8s_cluster'].join_command | mandatory }}
     --control-plane
-    --certificate-key {{ hostvars['k8s_cluster'].certificate_key }}
+    --certificate-key {{ hostvars['k8s_cluster'].certificate_key | mandatory }}
   when:
     - not kubeletconf.stat.exists
     - inventory_hostname != groups['masters'][0]

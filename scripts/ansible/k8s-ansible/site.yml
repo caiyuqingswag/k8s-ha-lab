@@ -68,6 +68,7 @@
 
 - name: Kubeadm init on master1 and apply Calico
   hosts: "{{ groups['masters'][0] }}"
+  serial: 1
   become: true
   tasks:
     - import_role:
