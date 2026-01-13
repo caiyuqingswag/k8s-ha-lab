@@ -20,10 +20,3 @@ system_update_control_host: master1
 vip: "172.16.15.50/24"
 vip_port: 16443
 interface: "ens3"
-
-k8s_masters:
-  - "172.16.15.51"
-  - "172.16.15.52"
-  - "172.16.15.53"
-
-
