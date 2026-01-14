@@ -95,7 +95,7 @@
 
 - name: Ensure report dir exists on control node
   delegate_to: localhost
-  run_once: true
+  when: inventory_hostname == groups['all'][0]
   file:
     path: "{{ system_update_report_dir }}"
     state: directory
@@ -111,7 +111,7 @@
 # 生成总览 summary（只在控制端运行一次）
 - name: Save summary report on control node
   delegate_to: localhost
-  run_once: true
+  when: inventory_hostname == groups['all'][0]
   template:
     src: summary.j2
     dest: "{{ system_update_report_dir }}/SUMMARY.txt"

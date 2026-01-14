@@ -1,7 +1,7 @@
-- name: Install containerd
-  dnf:
-    name: containerd
-    state: present
+- name: Add docker-ce repo (Aliyun)
+  command: dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo
 
 - name: Copy crictl package to nodes
   copy:
@@ -20,6 +20,11 @@
   file:
     path: /usr/local/bin/crictl
     mode: "0755"
+
+- name: Install containerd
+  dnf:
+    name: containerd
+    state: present
 
 - name: Ensure containerd dirs
   file:

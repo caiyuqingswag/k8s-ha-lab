@@ -7,7 +7,7 @@ pod_cidr: "10.244.0.0/16"
 service_cidr: "10.96.0.0/12"
 
 # 你的 HA endpoint（原样照抄）
-control_plane_endpoint: "172.16.15.50:16443"
+control_plane_endpoint: "172.16.15.60:16443"
 
 # kube-proxy / kubelet（照你 kubeadm.yaml）
 kubeproxy_mode: "nftables"
@@ -17,6 +17,6 @@ cgroup_driver: "systemd"
 system_update_control_host: master1
 
 
-vip: "172.16.15.50/24"
+vip: "172.16.15.60/24"
 vip_port: 16443
 interface: "ens3"
