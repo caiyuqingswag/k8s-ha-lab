@@ -1,5 +1,5 @@
 - name: Get join command from master1
-  hosts: 172.16.15.51
+  hosts: 172.16.15.61
   become: true
   tasks:
     - name: Get join command
@@ -21,5 +21,5 @@
       register: kubeletconf
 
     - name: Join cluster as worker
-      command: "{{ hostvars['172.16.15.51'].join_command_worker }}"
+      command: "{{ hostvars['172.16.15.61'].join_command_worker }}"
       when: not kubeletconf.stat.exists
