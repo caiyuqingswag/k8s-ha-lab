@@ -2,7 +2,6 @@
   meta: end_host
   when: not (system_update_enabled | default(true))
 
-
 - name: Mark whether this host is the Ansible control node
   set_fact:
     is_control_node: "{{ inventory_hostname == system_update_control_host }}"
@@ -12,16 +11,26 @@
   register: kernel_before
   changed_when: false
 
-- name: Ensure yum-utils is installed (for needs-restarting)
+- name: Ensure tools for needs-restarting are installed
   dnf:
-    name: yum-utils
+    name:
+      - dnf-utils
+      - dnf-plugins-core
     state: present
+  failed_when: false
+
+- name: Update metadata cache (avoid stale repo metadata)
+  command: dnf -y makecache
+  changed_when: false
+  failed_when: false
 
 - name: Update all packages (including kernel)
   dnf:
     name: "*"
     state: latest
     update_cache: true
+    lock_timeout: "{{ system_update_dnf_lock_timeout }}"
+  register: dnf_update_result
 
 - name: Check if reboot is required (needs-restarting -r)
   command: needs-restarting -r
@@ -30,11 +39,11 @@
   changed_when: false
   when: system_update_reboot_only_if_needed | default(true)
 
-- name: Decide reboot_needed flag
+- name: Decide reboot_needed flag (reboot if anything updated)
   set_fact:
     reboot_needed: >-
       {{
-        (not (system_update_reboot_only_if_needed | default(true))) or
+        (dnf_update_result is defined and dnf_update_result.changed) or
         (reboot_required is defined and reboot_required.rc != 0)
       }}
 
@@ -50,7 +59,20 @@
     - reboot_needed
     - not is_control_node
 
-- name: Record kernel after update/reboot (non-control or control not rebooted yet)
+- name: Reboot control node with delay (optional)
+  reboot:
+    msg: "Delayed reboot for Ansible control node after system update"
+    connect_timeout: "{{ system_update_connect_timeout }}"
+    reboot_timeout: "{{ system_update_reboot_timeout }}"
+    pre_reboot_delay: "{{ system_update_control_reboot_delay_seconds }}"
+    post_reboot_delay: "{{ system_update_post_delay }}"
+  when:
+    - system_update_reboot
+    - reboot_needed
+    - is_control_node
+    - system_update_reboot_control_node | default(false)
+
+- name: Record kernel after update/reboot
   command: uname -r
   register: kernel_after
   changed_when: false
@@ -68,10 +90,12 @@
       Kernel changed: {{ 'YES' if kernel_changed else 'NO' }}
       Reboot needed: {{ 'YES' if reboot_needed else 'NO' }}
       Reboot executed now: {{ 'NO (control node)' if is_control_node else ('YES' if (system_update_reboot and reboot_needed) else 'NO') }}
+      DNF changed: {{ 'YES' if (dnf_update_result is defined and (dnf_update_result.changed | default(false))) else 'NO' }}
       Time: {{ ansible_date_time.iso8601 }}
 
 - name: Ensure report dir exists on control node
   delegate_to: localhost
+  run_once: true
   file:
     path: "{{ system_update_report_dir }}"
     state: directory
@@ -82,4 +106,13 @@
   copy:
     dest: "{{ system_update_report_dir }}/{{ inventory_hostname }}.txt"
     content: "{{ upgrade_report }}"
+    mode: "0644"
+
+# 生成总览 summary（只在控制端运行一次）
+- name: Save summary report on control node
+  delegate_to: localhost
+  run_once: true
+  template:
+    src: summary.j2
+    dest: "{{ system_update_report_dir }}/SUMMARY.txt"
     mode: "0644"

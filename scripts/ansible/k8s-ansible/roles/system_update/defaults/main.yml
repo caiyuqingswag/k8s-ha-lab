@@ -1,3 +1,9 @@
+# dnf 锁等待时间，避免并发更新导致失败（秒）
+system_update_dnf_lock_timeout: 120
+
+# 是否允许控制节点也重启（默认 false，避免把 ansible 控制端干掉）
+system_update_reboot_control_node: false
+
 # 是否启用更新
 system_update_enabled: true
 
