@@ -4,7 +4,7 @@ localAPIEndpoint:
   advertiseAddress: {{ ansible_host }}
   bindPort: 6443
 nodeRegistration:
-  criSocket: unix:///var/run/containerd/containerd.sock
+  criSocket: unix:///run/containerd/containerd.sock
   imagePullPolicy: IfNotPresent
   imagePullSerial: true
   name: {{ inventory_hostname }}
@@ -31,3 +31,5 @@ mode: {{ kubeproxy_mode }}
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 cgroupDriver: {{ cgroup_driver }}
+containerLogMaxSize: "100Mi"
+containerLogMaxFiles: 5

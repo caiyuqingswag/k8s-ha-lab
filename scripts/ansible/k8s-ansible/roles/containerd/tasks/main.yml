@@ -1,7 +1,7 @@
-- name: Add docker-ce repo (Aliyun)
-  command: dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-  args:
-    creates: /etc/yum.repos.d/docker-ce.repo
+- name: Install containerd
+  dnf:
+    name: containerd
+    state: present
 
 - name: Copy crictl package to nodes
   copy:
@@ -21,11 +21,6 @@
     path: /usr/local/bin/crictl
     mode: "0755"
 
-- name: Install containerd
-  dnf:
-    name: containerd
-    state: present
-
 - name: Ensure containerd dirs
   file:
     path: "{{ item }}"
@@ -34,6 +29,7 @@
   loop:
     - /etc/containerd
     - /etc/containerd/conf.d
+    - /etc/containerd/certs.d
 
 - name: Deploy containerd config.toml
   copy:
@@ -158,14 +154,12 @@
 - name: Configure crictl
   copy:
     dest: /etc/crictl.yaml
+    mode: "0644"
     content: |
-      runtime-endpoint: unix:///var/run/containerd/containerd.sock
-      image-endpoint: unix:///var/run/containerd/containerd.sock
+      runtime-endpoint: unix:///run/containerd/containerd.sock
+      image-endpoint: unix:///run/containerd/containerd.sock
       timeout: 10
       debug: false
-    mode: "0644"
-
-# journald
 
 - name: Ensure journald drop-in directory exists
   file:
@@ -186,6 +180,7 @@
 - name: Configure journald log rotation
   copy:
     dest: /etc/systemd/journald.conf.d/99-k8s.conf
+    mode: "0644"
     content: |
       [Journal]
       Storage=persistent
@@ -195,7 +190,6 @@
       SystemMaxFileSize=100M
       MaxRetentionSec=30day
       MaxFileSec=7day
-    mode: "0644"
   notify: Restart journald
 
 - name: Enable and start containerd

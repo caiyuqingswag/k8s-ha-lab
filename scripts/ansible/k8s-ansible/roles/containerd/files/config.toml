@@ -39,7 +39,7 @@ grpc_histogram = false
 [plugins.'io.containerd.cri.v1.images']
 snapshotter = 'overlayfs'
 disable_snapshot_annotations = true
-discard_unpacked_layers = false
+discard_unpacked_layers = true
 max_concurrent_downloads = 3
 concurrent_layer_fetch_buffer = 0
 image_pull_progress_timeout = '5m0s'
@@ -57,7 +57,7 @@ config_path = '/etc/containerd/certs.d:/etc/docker/certs.d'
 key_model = 'node'
 
 [plugins.'io.containerd.cri.v1.runtime']
-enable_selinux = false
+enable_selinux = true
 selinux_category_range = 1024
 max_container_log_line_size = 16384
 disable_apparmor = false
