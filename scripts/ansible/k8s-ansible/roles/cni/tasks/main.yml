@@ -1,4 +1,4 @@
-- name: Copy Calico manifest (your verified file)
+- name: Copy Calico manifest
   copy:
     src: calico-v3.31.3.yaml
     dest: /root/calico.yaml

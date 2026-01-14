@@ -2,14 +2,14 @@ k8s_version: "1.34.2"
 image_repo: "registry.cn-hangzhou.aliyuncs.com/google_containers"
 pause_image: "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9"
 
-# 你的 kubeadm.yaml / Calico 已验证的网段
+# kubeadm.yaml / Calico 的网段
 pod_cidr: "10.244.0.0/16"
 service_cidr: "10.96.0.0/12"
 
-# 你的 HA endpoint（原样照抄）
+# HA endpoint
 control_plane_endpoint: "172.16.15.60:16443"
 
-# kube-proxy / kubelet（照你 kubeadm.yaml）
+# kube-proxy / kubelet
 kubeproxy_mode: "nftables"
 cgroup_driver: "systemd"
 
