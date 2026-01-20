@@ -97,7 +97,7 @@ spec:
               protocol: TCP
       initContainers:
         - name: init-nacos
-          image: busybox:latest
+          image: busybox:1.36
           imagePullPolicy: Always
           command:
             - sh

@@ -23,16 +23,7 @@ spec:
         fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
-      tolerations:
-        - key: "node.kubernetes.io/not-ready"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 20
-        - key: "node.kubernetes.io/unreachable"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 20
-      terminationGracePeriodSeconds: 5
+      terminationGracePeriodSeconds: 20
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -99,10 +90,10 @@ spec:
             failureThreshold: 20
       initContainers:
         - name: init
-          image: busybox:latest
+          image: busybox:1.36
           command:
             - sh
           args:
             - "-c"
             - until nc -vz klinx-bizbase-server 8751; do echo waiting for base; sleep 2; done
-      dnsPolicy: ClusterFirst
+      

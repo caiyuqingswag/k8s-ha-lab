@@ -81,4 +81,4 @@ spec:
               memory: 512Mi
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
-      dnsPolicy: ClusterFirst
+      

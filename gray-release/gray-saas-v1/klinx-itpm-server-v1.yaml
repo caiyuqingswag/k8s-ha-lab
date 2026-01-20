@@ -37,7 +37,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       initContainers:
         - name: init
-          image: busybox:latest
+          image: busybox:1.36
           command:
             - sh
           args:
@@ -100,4 +100,4 @@ spec:
             periodSeconds: 6
             successThreshold: 1
             failureThreshold: 40
-      dnsPolicy: ClusterFirst
+      

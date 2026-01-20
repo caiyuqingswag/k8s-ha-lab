@@ -23,16 +23,7 @@ spec:
         fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
-      tolerations:
-        - key: "node.kubernetes.io/not-ready"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 20
-        - key: "node.kubernetes.io/unreachable"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 20
-      terminationGracePeriodSeconds: 5
+      terminationGracePeriodSeconds: 20
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -96,4 +87,4 @@ spec:
             periodSeconds: 6
             successThreshold: 1
             failureThreshold: 30
-      dnsPolicy: ClusterFirst
+      
