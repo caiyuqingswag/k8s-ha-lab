@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-datahub-server
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-datahub-server
+  template:
+    metadata:
+      labels:
+        app: klinx-datahub-server
+    spec:
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+      terminationGracePeriodSeconds: 5
+      volumes:
+        - name: host-time
+          hostPath:
+            path: /etc/localtime
+            type: ''
+        - name: log
+          hostPath:
+            path: /data/saas-log
+            type: DirectoryOrCreate
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - klinx-datahub-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: klinx-datahub-server
+          image: node5:443/itex-biz/klinx-datahub:private_hanew
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: saas-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 4096Mi
+          volumeMounts:
+            - name: host-time
+              readOnly: true
+              mountPath: /etc/localtime
+            - name: log
+              mountPath: /Users/texpro/data/projects/logs
+          ports:
+            - name: tcp-9560
+              containerPort: 9560
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9560
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9560
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 1
+            periodSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9560
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 30
+
+      initContainers:
+        - name: init
+          image: busybox:latest
+          command:
+            - sh
+          args:
+            - '-c'
+            - until nc -vz klinx-mqtt-broker 18255;do echo waiting for nacos;sleep 2;done
+      dnsPolicy: ClusterFirst
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: "25%"
+      maxSurge: "25%"
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: klinx-datahub-server
+  namespace: saas
+spec:
+  type: ClusterIP
+  selector:
+    app: klinx-datahub-server
+  ports:
+    - name: tcp-9560
+      port: 9560
+      protocol: TCP
+      targetPort: 9560

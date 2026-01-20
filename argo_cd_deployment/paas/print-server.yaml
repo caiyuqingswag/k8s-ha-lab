@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: print-server
+  namespace: paas-components
+  labels:
+    app: print-server
+    version: private
+spec:
+  selector:
+    matchLabels:
+      app: print-server
+      version: private
+  replicas: 1
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: print-server
+        version: private
+    spec:
+      containers:
+        - name: print-server
+          image: node5:443/ipaas-biz/print-server:private
+          ports:
+            - name: wsport
+              containerPort: 9096
+              protocol: TCP
+            - containerPort: 8094
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: paas-config
+          env:
+            - name: APP_MODE
+              value: private
+            - name: APP_VERSION
+              value: private
+          resources:
+            requests:
+              cpu: 300m
+              memory: 1000Mi
+            limits:
+              cpu: 1000m
+              memory: 2500Mi
+      imagePullSecrets:
+        - name: harbor-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: print-server
+  namespace: paas-components
+  labels:
+    app: print-server
+    version: private
+spec:
+  sessionAffinity: None
+  type: NodePort
+  selector:
+    app: print-server
+  ports:
+    - name: wsport
+      protocol: TCP
+      port: 9096
+      targetPort: 9096
+      nodePort: 32246
+    - name: http-8094
+      protocol: TCP
+      port: 8094
+      targetPort: 8094
+      nodePort: 31947

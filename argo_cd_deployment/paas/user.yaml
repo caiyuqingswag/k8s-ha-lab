@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user
+  namespace: paas-components
+  labels:
+    app: user
+    version: private
+spec:
+  selector:
+    matchLabels:
+      app: user
+      version: private
+  replicas: 1
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: user
+        version: private
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7070"
+    spec:
+      containers:
+        - name: user
+          image: node5:443/ipaas-biz/user:private
+          ports:
+            - protocol: TCP
+              containerPort: 7070
+            - protocol: TCP
+              containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: paas-config
+          env:
+            - name: APP_MODE
+              value: private
+            - name: APP_VERSION
+              value: private
+          resources:
+            requests:
+              cpu: 300m
+              memory: 1000Mi
+            limits:
+              cpu: 1000m
+              memory: 2500Mi
+      imagePullSecrets:
+        - name: harbor-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user
+  namespace: paas-components
+  labels:
+    app: user
+    version: private
+spec:
+  sessionAffinity: None
+  type: ClusterIP
+  selector:
+    app: user
+  ports:
+    - name: http-7070
+      port: 7070
+      protocol: TCP
+      targetPort: 7070
+    - name: http-8081
+      port: 8081
+      protocol: TCP
+      targetPort: 8081

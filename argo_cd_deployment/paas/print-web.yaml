@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: print-web
+  namespace: paas-components
+  labels:
+    app: print-web
+    version: private
+spec:
+  selector:
+    matchLabels:
+      app: print-web
+      version: private
+  replicas: 1
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: print-web
+        version: private
+    spec:
+      containers:
+        - name: print-web
+          image: node5:443/ipaas-web/print-web:private-crh
+          ports:
+            - protocol: TCP
+              containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: paas-config
+          env:
+            - name: APP_MODE
+              value: private
+            - name: APP_VERSION
+              value: private
+          resources:
+            requests:
+              cpu: 300m
+              memory: 1000Mi
+            limits:
+              cpu: 1000m
+              memory: 2500Mi
+      imagePullSecrets:
+        - name: harbor-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: print-web
+  namespace: paas-components
+  labels:
+    app: print-web
+    version: private
+spec:
+  sessionAffinity: None
+  type: NodePort
+  selector:
+    app: print-web
+  ports:
+    - name: http-80
+      protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 32087
