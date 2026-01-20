@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: klinx-iems-server
+  namespace: saas
+spec:
+  type: ClusterIP
+  selector:
+    app: klinx-iems-server
+  ports:
+    - name: tcp-8703
+      port: 8703
+      protocol: TCP
+      targetPort: 8703

@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-iexpert-server-v2
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-iexpert-server
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: klinx-iexpert-server
+        version: v2
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: klinx-iexpert-server
+          image: node5:443/itex-biz/klinx-iexpert-server:REPLACE_WITH_V2_TAG
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 8717
+              protocol: TCP
+              name: tcp-8717
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8717
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8717
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 1
+            periodSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8717
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 30
+          env:
+            - name: DISCOVERY_PORT
+              value: "8717"
+            - name: SERVER_PORT
+              value: "8717"
+            - name: JAVA_OPTS
+              value: "-XX:MaxRAMPercentage=90.0"
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1800Mi
+            requests:
+              cpu: 300m
+              memory: 512Mi
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst

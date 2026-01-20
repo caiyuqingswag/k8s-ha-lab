@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-iqms-server
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-iqms-server
+  template:
+    metadata:
+      labels:
+        app: klinx-iqms-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - klinx-iqms-servers
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: klinx-iqms-server
+          imagePullPolicy: Always
+          image: node5:443/itex-biz/klinx-iqms-server:private_jingyuan_qa_sit
+          env:
+            - name: JAVA_OPTS
+              value: -XX:MaxRAMPercentage=90.0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 6144Mi
+          ports:
+            - name: tcp-8709
+              containerPort: 8709
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8709
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8709
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 1
+            periodSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8709
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 30
+      initContainers:
+        - name: init
+          image: busybox:latest
+          command:
+            - sh
+          args:
+            - '-c'
+            - until nc -vz klinx-iccs-server 8707;do echo waiting for ccs;sleep 2;done
+      dnsPolicy: ClusterFirst
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: "25%"
+      maxSurge: "25%"
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: klinx-iqms-server
+  namespace: saas
+spec:
+  type: ClusterIP
+  selector:
+    app: klinx-iqms-server
+  ports:
+    - name: tcp-8709
+      port: 8709
+      protocol: TCP
+      targetPort: 8709

@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-icas-server-v2
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-icas-server
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: klinx-icas-server
+        version: v2
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+      terminationGracePeriodSeconds: 5
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - klinx-icas-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: klinx-icas-server
+          imagePullPolicy: Always
+          image: node5:443/itex-biz/klinx-icas-server:REPLACE_WITH_V2_TAG
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: JAVA_OPTS
+              value: "-XX:MaxRAMPercentage=90.0"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 3072Mi
+          ports:
+            - name: tcp-8701
+              containerPort: 8701
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8701
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8701
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 1
+            periodSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8701
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 30
+      initContainers:
+        - name: init
+          image: busybox:latest
+          command:
+            - sh
+          args:
+            - "-c"
+            - until nc -vz klinx-iccs-server 8707; do echo waiting for ccs; sleep 2; done
+      dnsPolicy: ClusterFirst

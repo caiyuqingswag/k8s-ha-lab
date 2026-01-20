@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-base-server-v1
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-base-server
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: klinx-base-server
+        version: v1
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+      terminationGracePeriodSeconds: 5
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - klinx-base-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: klinx-base-server
+          image: node5:443/itex-biz/klinx-base-server:private_jingyuan_qa_sit
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: saas-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 856Mi
+            limits:
+              cpu: 1000m
+              memory: 4144Mi
+          ports:
+            - name: tcp-8750
+              containerPort: 8750
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8750
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8750
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 2
+            periodSeconds: 2
+            successThreshold: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8750
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 1
+            periodSeconds: 6
+            successThreshold: 1
+            failureThreshold: 50
+      initContainers:
+        - name: init
+          image: busybox:latest
+          command:
+            - sh
+          args:
+            - "-c"
+            - until nc -vz klinx-datahub-server 9560; do echo waiting for nacos; sleep 2; done
+      dnsPolicy: ClusterFirst

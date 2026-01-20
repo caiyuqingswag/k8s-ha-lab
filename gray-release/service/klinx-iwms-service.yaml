@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: klinx-iwms-server
+  namespace: saas
+spec:
+  type: ClusterIP
+  selector:
+    app: klinx-iwms-server
+  ports:
+    - name: tcp-8706
+      port: 8706
+      protocol: TCP
+      targetPort: 8706

@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-openapi-server-v2
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-openapi-server
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: klinx-openapi-server
+        version: v2
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+      terminationGracePeriodSeconds: 5
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - klinx-openapi-server
+                topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: init
+          image: busybox:latest
+          command: ["sh", "-c"]
+          args:
+            - until nc -vz klinx-iomp-server 8711; do echo waiting for base; sleep 2; done
+      containers:
+        - name: klinx-openapi-server
+          imagePullPolicy: Always
+          image: node5:443/itex-biz/klinx-openapi-server:REPLACE_WITH_V2_TAG
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          envFrom:
+            - configMapRef:
+                name: saas-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 4096Mi
+          ports:
+            - name: tcp-8712
+              containerPort: 8712
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8712
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 6
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8712
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 1
+            periodSeconds: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8712
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 1
+            periodSeconds: 6
+            failureThreshold: 20
+      dnsPolicy: ClusterFirst

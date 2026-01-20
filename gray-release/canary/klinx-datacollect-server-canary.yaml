@@ -1,0 +1,33 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: klinx-datacollect-server
+  namespace: saas
+spec:
+  host: klinx-datacollect-server.saas.svc.cluster.local
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+    - name: v2
+      labels:
+        version: v2
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: klinx-datacollect-server
+  namespace: saas
+spec:
+  hosts:
+    - klinx-datacollect-server.saas.svc.cluster.local
+  http:
+    - route:
+        - destination:
+            host: klinx-datacollect-server.saas.svc.cluster.local
+            subset: v1
+          weight: 95
+        - destination:
+            host: klinx-datacollect-server.saas.svc.cluster.local
+            subset: v2
+          weight: 5

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-iwms-server-v2
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-iwms-server
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: klinx-iwms-server
+        version: v2
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: init
+          image: busybox:latest
+          command: ["sh", "-c"]
+          args:
+            - until nc -vz klinx-iccs-server 8707; do echo waiting for ccs; sleep 2; done
+      containers:
+        - name: klinx-iwms-server
+          imagePullPolicy: Always
+          image: node5:443/itex-biz/klinx-iwms-server:REPLACE_WITH_V2_TAG
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: JAVA_OPTS
+              value: "-XX:MaxRAMPercentage=85.0"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 6144Mi
+          ports:
+            - name: tcp-8706
+              containerPort: 8706
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 8706
+            initialDelaySeconds: 60
+            timeoutSeconds: 1
+            periodSeconds: 6
+            failureThreshold: 20
+          readinessProbe:
+            tcpSocket:
+              port: 8706
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 3
+            failureThreshold: 3
+      dnsPolicy: ClusterFirst
