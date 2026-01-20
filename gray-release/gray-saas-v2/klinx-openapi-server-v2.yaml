@@ -15,6 +15,7 @@ spec:
         app: klinx-openapi-server
         version: v2
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

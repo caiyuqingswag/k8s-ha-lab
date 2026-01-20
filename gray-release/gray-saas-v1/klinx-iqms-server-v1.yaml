@@ -1,18 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: klinx-iqms-server
+  name: klinx-iqms-server-v1
   namespace: saas
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: klinx-iqms-server
+      version: v1
   template:
     metadata:
       labels:
         app: klinx-iqms-server
+        version: v1
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -23,15 +33,20 @@ spec:
                     - key: app
                       operator: In
                       values:
-                        - klinx-iqms-servers
+                        - klinx-iqms-server
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: klinx-iqms-server
           imagePullPolicy: Always
-          image: node5:443/itex-biz/klinx-iqms-server:private_jingyuan_qa_sit
+          image: node5:443/itex-biz/klinx-iqms-server:REPLACE_WITH_V2_TAG
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: JAVA_OPTS
-              value: -XX:MaxRAMPercentage=90.0
+              value: "-XX:MaxRAMPercentage=90.0"
           resources:
             requests:
               cpu: 100m
@@ -77,28 +92,6 @@ spec:
           command:
             - sh
           args:
-            - '-c'
-            - until nc -vz klinx-iccs-server 8707;do echo waiting for ccs;sleep 2;done
+            - "-c"
+            - until nc -vz klinx-iccs-server 8707; do echo waiting for ccs; sleep 2; done
       dnsPolicy: ClusterFirst
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: "25%"
-      maxSurge: "25%"
-  revisionHistoryLimit: 10
-  progressDeadlineSeconds: 600
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: klinx-iqms-server
-  namespace: saas
-spec:
-  type: ClusterIP
-  selector:
-    app: klinx-iqms-server
-  ports:
-    - name: tcp-8709
-      port: 8709
-      protocol: TCP
-      targetPort: 8709
