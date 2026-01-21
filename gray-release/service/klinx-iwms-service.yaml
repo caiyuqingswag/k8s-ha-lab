@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-iwms-server
   ports:
-    - name: tcp-8706
+    - name: http-8706
       port: 8706
       protocol: TCP
       targetPort: 8706

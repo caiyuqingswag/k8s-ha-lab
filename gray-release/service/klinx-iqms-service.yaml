@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-iqms-server
   ports:
-    - name: tcp-8709
+    - name: http-8709
       port: 8709
       protocol: TCP
       targetPort: 8709

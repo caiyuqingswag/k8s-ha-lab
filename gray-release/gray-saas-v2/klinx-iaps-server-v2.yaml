@@ -59,7 +59,7 @@ spec:
               cpu: 2000m
               memory: 3072Mi
           ports:
-            - name: tcp-8713
+            - name: http-8713
               containerPort: 8713
               protocol: TCP
           livenessProbe:

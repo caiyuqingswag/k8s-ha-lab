@@ -60,7 +60,7 @@ spec:
             limits:
               memory: 4096Mi
           ports:
-            - name: tcp-8712
+            - name: http-8712
               containerPort: 8712
               protocol: TCP
           livenessProbe:

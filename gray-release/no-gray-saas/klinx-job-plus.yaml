@@ -79,7 +79,7 @@ spec:
             - configMapRef:
                 name: saas-config
           ports:
-            - name: tcp-7767
+            - name: http-7767
               containerPort: 7767
             - name: tcp-7768
               containerPort: 7768

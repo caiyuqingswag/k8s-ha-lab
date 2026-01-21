@@ -54,7 +54,7 @@ spec:
             limits:
               memory: 6144Mi
           ports:
-            - name: tcp-8709
+            - name: http-8709
               containerPort: 8709
               protocol: TCP
           livenessProbe:

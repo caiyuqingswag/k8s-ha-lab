@@ -55,7 +55,7 @@ spec:
             limits:
               memory: 6144Mi
           ports:
-            - name: tcp-8751
+            - name: http-8751
               containerPort: 8751
               protocol: TCP
           livenessProbe:

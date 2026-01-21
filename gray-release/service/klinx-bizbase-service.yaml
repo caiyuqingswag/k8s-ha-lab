@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-bizbase-server
   ports:
-    - name: tcp-8751
+    - name: http-8751
       port: 8751
       protocol: TCP
       targetPort: 8751

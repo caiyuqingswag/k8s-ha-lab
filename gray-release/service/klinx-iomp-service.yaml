@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-iomp-server
   ports:
-    - name: tcp-8711
+    - name: http-8711
       port: 8711
       protocol: TCP
       targetPort: 8711

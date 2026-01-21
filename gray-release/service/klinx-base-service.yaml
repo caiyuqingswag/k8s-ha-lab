@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-base-server
   ports:
-    - name: tcp-8750
+    - name: http-8750
       port: 8750
       protocol: TCP
       targetPort: 8750

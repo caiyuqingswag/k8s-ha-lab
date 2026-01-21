@@ -13,15 +13,10 @@ spec:
       labels:
         app: klinx-itex-eoms
     spec:
-      tolerations:
-        - key: "node.kubernetes.io/not-ready"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 20
-        - key: "node.kubernetes.io/unreachable"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 20
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       terminationGracePeriodSeconds: 5
       affinity:
         podAntiAffinity:
@@ -39,6 +34,10 @@ spec:
         - name: klinx-itex-eoms
           imagePullPolicy: Always
           image: node5:443/itex-biz/klinx-itex-eoms:private_jingyuan_qa
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 50m
@@ -47,7 +46,7 @@ spec:
               cpu: 500m
               memory: 512Mi
           ports:
-            - name: tcp-80
+            - name: http-80
               containerPort: 80
               protocol: TCP
           livenessProbe:
@@ -69,10 +68,8 @@ spec:
       initContainers:
         - name: init
           image: busybox:1.36
-          command:
-            - sh
+          command: ["sh","-c"]
           args:
-            - '-c'
             - until nc -vz klinx-openapi-server 8712;do echo waiting for gateway;sleep 2;done
       dnsPolicy: ClusterFirst
   strategy:
@@ -93,7 +90,7 @@ spec:
   selector:
     app: klinx-itex-eoms
   ports:
-    - name: tcp-80
+    - name: http-80
       port: 80
       protocol: TCP
       targetPort: 80

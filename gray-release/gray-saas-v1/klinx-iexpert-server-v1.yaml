@@ -35,7 +35,7 @@ spec:
           ports:
             - containerPort: 8717
               protocol: TCP
-              name: tcp-8717
+              name: http-8717
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness

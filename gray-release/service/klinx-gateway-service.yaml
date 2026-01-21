@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-gateway-server
   ports:
-    - name: tcp-8760
+    - name: http-8760
       port: 8760
       protocol: TCP
       targetPort: 8760

@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-ismartbi-server
   ports:
-    - name: tcp-8708
+    - name: http-8708
       port: 8708
       protocol: TCP
       targetPort: 8708

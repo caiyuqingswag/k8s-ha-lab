@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-idevicehub-server
   ports:
-    - name: tcp-8710
+    - name: http-8710
       port: 8710
       protocol: TCP
       targetPort: 8710

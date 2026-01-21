@@ -56,7 +56,7 @@ spec:
               cpu: 1000m
               memory: 4144Mi
           ports:
-            - name: tcp-8750
+            - name: http-8750
               containerPort: 8750
               protocol: TCP
           livenessProbe:

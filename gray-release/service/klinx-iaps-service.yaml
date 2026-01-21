@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-iaps-server
   ports:
-    - name: tcp-8713
+    - name: http-8713
       port: 8713
       protocol: TCP
       targetPort: 8713

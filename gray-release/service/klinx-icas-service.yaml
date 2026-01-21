@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-icas-server
   ports:
-    - name: tcp-8701
+    - name: http-8701
       port: 8701
       protocol: TCP
       targetPort: 8701

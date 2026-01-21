@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-itpm-server
   ports:
-    - name: tcp-8716
+    - name: http-8716
       port: 8716
       protocol: TCP
       targetPort: 8716

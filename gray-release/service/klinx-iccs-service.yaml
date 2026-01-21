@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-iccs-server
   ports:
-    - name: tcp-8707
+    - name: http-8707
       port: 8707
       protocol: TCP
       targetPort: 8707

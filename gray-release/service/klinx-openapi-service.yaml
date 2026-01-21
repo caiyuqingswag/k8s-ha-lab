@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-openapi-server
   ports:
-    - name: tcp-8712
+    - name: http-8712
       port: 8712
       protocol: TCP
       targetPort: 8712

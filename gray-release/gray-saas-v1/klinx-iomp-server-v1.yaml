@@ -54,7 +54,7 @@ spec:
               drop:
                 - ALL
           ports:
-            - name: tcp-8711
+            - name: http-8711
               containerPort: 8711
               protocol: TCP
           envFrom:

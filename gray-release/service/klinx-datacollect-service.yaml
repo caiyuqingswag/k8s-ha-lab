@@ -8,7 +8,7 @@ spec:
   selector:
     app: klinx-datacollect-server
   ports:
-    - name: tcp-8702
+    - name: http-8702
       port: 8702
       protocol: TCP
       targetPort: 8702
