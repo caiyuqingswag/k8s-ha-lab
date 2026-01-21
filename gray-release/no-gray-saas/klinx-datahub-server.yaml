@@ -18,15 +18,6 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       terminationGracePeriodSeconds: 5
-      volumes:
-        - name: host-time
-          hostPath:
-            path: /etc/localtime
-            type: ""
-        - name: log
-          hostPath:
-            path: /data/saas-log
-            type: DirectoryOrCreate
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -56,12 +47,6 @@ spec:
               memory: 256Mi
             limits:
               memory: 4096Mi
-          volumeMounts:
-            - name: host-time
-              readOnly: true
-              mountPath: /etc/localtime
-            - name: log
-              mountPath: /Users/texpro/data/projects/logs
           ports:
             - name: http-9560
               containerPort: 9560
