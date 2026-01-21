@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: influxdb-config
+  namespace: basic
+data:
+  influxdb.conf: |
+    reporting-disabled = true
+
+    [meta]
+      dir = "/var/lib/influxdb/meta"
+
+    [data]
+      dir = "/var/lib/influxdb/data"
+      wal-dir = "/var/lib/influxdb/wal"
+      cache-max-memory-size = "512m"
+      cache-snapshot-memory-size = "64m"
+      cache-snapshot-write-cold-duration = "10m"
+      compact-full-write-cold-duration = "4h"
+      max-series-per-database = 0
+      max-values-per-tag = 0
+
+    [coordinator]
+      query-timeout = "60s"
+      max-concurrent-queries = 0
+      max-select-series = 0
+      max-select-point = 0
+      log-queries-after = "0s"
+
+
+    #CREATE RETENTION POLICY "30d" ON "metrics" DURATION 30d REPLICATION 1 DEFAULT
+    [retention]
+      enabled = true
+      check-interval = "24h"
+      
+    [http]
+      enabled = true
+      bind-address = ":8086"
+      auth-enabled = true
+      log-enabled = false  #关闭探针刷日志
+      write-tracing = false
+      pprof-enabled = false
+      https-enabled = false
+    
+    
+
