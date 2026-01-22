@@ -76,4 +76,4 @@ spec:
       volumes:
         - name: rabbitmq-data
           persistentVolumeClaim:
-            claimName: pvc-rabbitmq
+            claimName: pvc-rabbitmq-dev

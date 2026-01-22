@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: pv-mysql
+  name: pv-mysql-dev
 spec:
   capacity:
     storage: 200Gi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: mysql-nfs-static
+  storageClassName: mysql-nfs-dev
   mountOptions:
     - vers=4.1
     - rsize=1048576

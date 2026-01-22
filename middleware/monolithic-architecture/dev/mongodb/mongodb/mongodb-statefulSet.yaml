@@ -75,4 +75,4 @@ spec:
       volumes:
         - name: mongodb-data
           persistentVolumeClaim:
-            claimName: pvc-mongodb
+            claimName: pvc-mongodb-dev
