@@ -13,4 +13,4 @@ spec:
     - name: mongo
       port: 27017
       targetPort: 27017
-      nodePort: 30017
+      nodePort: 30018
