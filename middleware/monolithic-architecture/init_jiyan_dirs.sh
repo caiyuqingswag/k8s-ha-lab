@@ -1,0 +1,41 @@
+cat > /root/init_jiyan_dirs.sh << 'EOF'
+#!/bin/bash
+set -e
+
+BASE="/data/jiyan"
+ENVS=("prod" "sit" "dev")
+
+# 组件与 UID/GID 映射
+declare -A UID_MAP=(
+  ["mysql"]=999
+  ["mongodb"]=999
+  ["redis"]=999
+  ["rabbitmq"]=999
+  ["influxdb"]=1000
+  ["minio"]=1000
+)
+
+COMPONENTS=("mysql" "mongodb" "redis" "rabbitmq" "influxdb" "minio")
+
+echo "📁 Creating directories..."
+for env in "${ENVS[@]}"; do
+  for comp in "${COMPONENTS[@]}"; do
+    mkdir -p ${BASE}/${env}/${comp}
+  done
+done
+
+echo "🔐 Setting ownership and permissions..."
+for env in "${ENVS[@]}"; do
+  for comp in "${COMPONENTS[@]}"; do
+    uid=${UID_MAP[$comp]}
+    chown -R ${uid}:${uid} ${BASE}/${env}/${comp}
+    chmod -R 755 ${BASE}/${env}/${comp}
+  done
+done
+
+echo "✅ All directories created and permissions set."
+
+echo
+echo "📂 Result:"
+tree -d ${BASE} || ls -R ${BASE}
+EOF
