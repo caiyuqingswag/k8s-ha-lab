@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: influxdb-headless
-  namespace: basic
+  namespace: sit-basic
   labels:
     app: influxdb
 spec:

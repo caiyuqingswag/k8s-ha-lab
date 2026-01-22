@@ -2,7 +2,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: influxdb-pdb
-  namespace: basic
+  namespace: sit-basic
 spec:
   minAvailable: 1
   selector:

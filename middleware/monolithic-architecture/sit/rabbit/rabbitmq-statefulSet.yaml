@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: rabbitmq
-  namespace: basic
+  namespace: sit-basic
 spec:
   serviceName: rabbitmq-headless
   replicas: 1
@@ -76,4 +76,4 @@ spec:
       volumes:
         - name: rabbitmq-data
           persistentVolumeClaim:
-            claimName: pvc-rabbitmq
+            claimName: pvc-rabbitmq-sit

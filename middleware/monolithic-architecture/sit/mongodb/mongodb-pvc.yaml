@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pvc-mongodb
-  namespace: basic
+  name: pvc-mongodb-sit
+  namespace: sit-basic
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: mongodb-nfs-static
+  storageClassName: mongodb-nfs-sit
   resources:
     requests:
       storage: 100Gi
-  volumeName: pv-mongodb
+  volumeName: pv-mongodb-sit

@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pvc-mysql
-  namespace: basic
+  name: pvc-mysql-sit
+  namespace: sit-basic
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: mysql-nfs-static
+  storageClassName: mysql-nfs-sit
   resources:
     requests:
       storage: 200Gi
-  volumeName: pv-mysql
+  volumeName: pv-mysql-sit

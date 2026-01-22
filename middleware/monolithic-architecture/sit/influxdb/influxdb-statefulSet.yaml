@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: influxdb
-  namespace: basic
+  namespace: sit-basic
 spec:
   serviceName: influxdb-headless
   replicas: 1
@@ -79,7 +79,7 @@ spec:
       volumes:
         - name: influxdb-data
           persistentVolumeClaim:
-            claimName: pvc-influxdb
+            claimName: pvc-influxdb-sit
         - name: influxdb-config
           configMap:
             name: influxdb-config
