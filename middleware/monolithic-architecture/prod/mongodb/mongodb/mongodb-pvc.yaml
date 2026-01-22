@@ -6,7 +6,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: mongodb-nfs-static
+  storageClassName: mongodb-nfs-prod
   resources:
     requests:
       storage: 100Gi
