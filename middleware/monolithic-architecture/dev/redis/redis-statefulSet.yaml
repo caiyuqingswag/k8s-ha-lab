@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: redis
-  namespace: basic
+  namespace: dev-basic
 spec:
   serviceName: redis-headless
   replicas: 1

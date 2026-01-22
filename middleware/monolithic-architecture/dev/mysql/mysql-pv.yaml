@@ -18,4 +18,4 @@ spec:
     - retrans=2
   nfs:
     server: 172.16.15.66
-    path: /data/jiyan/mysql
+    path: /data/jiyan/dev/mysql
