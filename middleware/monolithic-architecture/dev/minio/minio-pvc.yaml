@@ -10,4 +10,4 @@ spec:
   resources:
     requests:
       storage: 500Gi
-  volumeName: pv-minio
+  volumeName: pv-minio-dev
