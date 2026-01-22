@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mysql
-  namespace: basic
+  namespace: prod-basic
 spec:
   serviceName: mysql-headless
   replicas: 1
@@ -77,7 +77,7 @@ spec:
       volumes:
         - name: mysql-data
           persistentVolumeClaim:
-            claimName: pvc-mysql
+            claimName: pvc-mysql-prod
         - name: mysql-config
           configMap:
             name: mysql-config

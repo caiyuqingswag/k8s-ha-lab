@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pvc-minio
-  namespace: basic
+  name: pvc-minio-prod
+  namespace: prod-basic
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: minio-nfs-static
+  storageClassName: minio-nfs-prod
   resources:
     requests:
       storage: 500Gi
-  volumeName: pv-minio
+  volumeName: pv-minio-prod

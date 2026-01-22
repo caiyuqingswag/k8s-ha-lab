@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: minio
-  namespace: basic
+  namespace: prod-basic
 spec:
   serviceName: minio-headless
   replicas: 1
@@ -73,4 +73,4 @@ spec:
       volumes:
         - name: minio-data
           persistentVolumeClaim:
-            claimName: pvc-minio
+            claimName: pvc-minio-prod

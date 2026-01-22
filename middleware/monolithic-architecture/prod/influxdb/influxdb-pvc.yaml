@@ -2,12 +2,12 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: pvc-influxdb
-  namespace: basic
+  namespace: prod-basic
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: influxdb-nfs-static
+  storageClassName: influxdb-nfs-prod
   resources:
     requests:
       storage: 200Gi
-  volumeName: pv-influxdb
+  volumeName: pv-influxdb-prod

@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pvc-redis
-  namespace: basic
+  name: pvc-redis-prod
+  namespace: prod-basic
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: redis-nfs-static
+  storageClassName: redis-nfs-prod
   resources:
     requests:
       storage: 50Gi
-  volumeName: pv-redis
+  volumeName: pv-redis-prod

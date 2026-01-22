@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: pv-mysql
+  name: pv-mysql-prod
 spec:
   capacity:
     storage: 200Gi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: mysql-nfs-static
+  storageClassName: mysql-nfs-prod
   mountOptions:
     - vers=4.1
     - rsize=1048576
@@ -18,4 +18,4 @@ spec:
     - retrans=2
   nfs:
     server: 172.16.15.66
-    path: /data/jiyan/mysql
+    path: /data/jiyan/prod/mysql

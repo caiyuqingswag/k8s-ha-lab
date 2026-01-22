@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: influxdb-config
-  namespace: basic
+  namespace: prod-basic
 data:
   influxdb.conf: |
     reporting-disabled = true
