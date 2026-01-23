@@ -87,6 +87,14 @@
 #        name: cni
   tags: init
 
+- name: Install CLI tools (kubectl completion, helm)
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  roles:
+    - cli-tools
+  tags:
+    - cli
+
 - name: Join other masters (control-plane)
   hosts: masters
   become: true
