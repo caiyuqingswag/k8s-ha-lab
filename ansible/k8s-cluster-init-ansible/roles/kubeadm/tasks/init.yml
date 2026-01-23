@@ -3,6 +3,7 @@
     path: /etc/kubernetes/admin.conf
   register: adminconf
 
+# ========= kubeadm.yaml =========
 - name: Render kubeadm.yaml
   template:
     src: kubeadm.yaml.j2
@@ -12,12 +13,25 @@
     - inventory_hostname == groups['masters'][0]
     - not adminconf.stat.exists
 
+# ========= kubeadm init =========
 - name: kubeadm init
   command: kubeadm init --config=/root/kubeadm.yaml
+  register: kubeadm_init
   when:
     - inventory_hostname == groups['masters'][0]
     - not adminconf.stat.exists
 
+# ========= init 后重新检查 admin.conf =========
+- name: Re-check admin.conf after init
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: adminconf_after
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - kubeadm_init is defined
+    - kubeadm_init is changed
+
+# ========= kubectl for root =========
 - name: Setup kubectl for root
   shell: |
     mkdir -p /root/.kube
@@ -27,37 +41,38 @@
     creates: /root/.kube/config
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf.stat.exists
+    - adminconf_after.stat.exists
 
+# ========= 切 kube-vip 为 steady（关键！）=========
 - name: Switch kube-vip kubeconfig back to admin.conf after init
   replace:
     path: /etc/kubernetes/manifests/kube-vip.yaml
-    regexp: 'path:\s*/etc/kubernetes/super-admin.conf'
+    regexp: 'path:\s*/etc/kubernetes/super-admin\.conf'
     replace: 'path: /etc/kubernetes/admin.conf'
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf.stat.exists
+    - kubeadm_init is defined
+    - kubeadm_init is changed
 
+# ========= upload-certs =========
 - name: Upload certs and get certificate-key (control-plane join)
-  command: >
-    kubeadm init phase upload-certs --upload-certs
-    --kubeconfig=/etc/kubernetes/admin.conf
+  command: kubeadm init phase upload-certs --upload-certs
   register: upload_certs
   changed_when: false
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf.stat.exists
+    - adminconf_after.stat.exists
 
+# ========= join command =========
 - name: Get join command (worker / control-plane base)
-  command: >
-    kubeadm token create --print-join-command
-    --kubeconfig=/etc/kubernetes/admin.conf
+  command: kubeadm token create --print-join-command
   register: join_cmd
   changed_when: false
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf.stat.exists
+    - adminconf_after.stat.exists
 
+# ========= VIP 校验 =========
 - name: Assert join command uses VIP endpoint
   assert:
     that:
@@ -69,8 +84,9 @@
       {{ join_cmd.stdout }}
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf.stat.exists
+    - adminconf_after.stat.exists
 
+# ========= 发布 join 信息 =========
 - name: Save cluster join info globally (k8s_cluster host)
   add_host:
     name: k8s_cluster
@@ -78,4 +94,4 @@
     certificate_key: "{{ (upload_certs.stdout_lines | last) | mandatory }}"
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf.stat.exists
+    - adminconf_after.stat.exists
