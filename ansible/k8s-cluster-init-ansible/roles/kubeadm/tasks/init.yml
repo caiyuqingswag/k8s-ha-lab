@@ -15,7 +15,7 @@
 
 # ========= kubeadm init =========
 - name: kubeadm init
-  command: kubeadm init --config=/root/kubeadm.yaml
+  command: kubeadm init --config=/root/kubeadm.yaml --skip-phases=addon/kube-proxy
   register: kubeadm_init
   when:
     - inventory_hostname == groups['masters'][0]
