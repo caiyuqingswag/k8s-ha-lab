@@ -1,7 +1,6 @@
 - name: Install NFS server packages
   package:
-    name:
-      - nfs-utils
+    name: nfs-utils
     state: present
 
 - name: Ensure NFS shared directory exists
@@ -13,9 +12,9 @@
 - name: Configure /etc/exports
   lineinfile:
     path: /etc/exports
-    line: "{{ nfs_dir }} *( {{ nfs_export_opts }} )"
+    line: "{{ nfs_dir }} *({{ nfs_export_opts | trim }})"
     create: yes
-    state: present
+  notify: Reload NFS exports
 
 - name: Enable and start NFS server
   systemd:
@@ -23,14 +22,10 @@
     enabled: true
     state: started
 
-- name: Reload NFS exports
-  command: exportfs -rv
-  changed_when: false
-
 - name: Show current NFS exports
   command: exportfs -v
   register: nfs_exports
   changed_when: false
 
 - debug:
-    msg: "{{ nfs_exports.stdout_lines }}"
+    var: nfs_exports.stdout_lines
