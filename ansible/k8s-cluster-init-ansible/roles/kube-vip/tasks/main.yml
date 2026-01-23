@@ -4,15 +4,24 @@
     state: directory
     mode: "0755"
 
-- name: Render kube-vip static pod manifest
+- name: Render kube-vip manifest for primary master
   template:
     src: kube-vip.yaml.j2
     dest: /etc/kubernetes/manifests/kube-vip.yaml
     mode: "0644"
+  when: inventory_hostname in groups['master1-vip']
 
-# kubelet 会自动拉起 static pod；重启不是必须，但很多环境更稳
+- name: Render kube-vip manifest for backup masters
+  template:
+    src: kube-vip-othermaster.yaml.j2
+    dest: /etc/kubernetes/manifests/kube-vip.yaml
+    mode: "0644"
+  when: inventory_hostname in groups['othermaster-vip']
+
 - name: Restart kubelet to pick up kube-vip static pod (optional)
   service:
     name: kubelet
     state: restarted
-  when: kube_vip_restart_kubelet | default(true)
+  when:
+    - kube_vip_restart_kubelet | default(false)
+    - inventory_hostname in groups['masters']

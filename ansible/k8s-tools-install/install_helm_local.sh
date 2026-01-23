@@ -21,3 +21,5 @@ echo "➡️ 验证安装..."
 helm version
 
 echo "✅ Helm 安装完成！"
+
+
