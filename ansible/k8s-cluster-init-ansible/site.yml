@@ -100,7 +100,7 @@
   become: true
   tasks:
     - import_role:
-        name: rni
+        name: cni
   tags:
     - cilium
 

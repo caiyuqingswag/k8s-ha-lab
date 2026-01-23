@@ -6,4 +6,4 @@ k8s_service_host: "172.16.15.60"
 k8s_service_port: 6443
 
 # kube-proxy replacement
-cilium_kubeproxy_replacement: strict
+cilium_kubeproxy_replacement: true

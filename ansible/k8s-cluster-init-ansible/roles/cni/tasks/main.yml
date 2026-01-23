@@ -1,11 +1,15 @@
-- name: Ensure kube-system namespace exists
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Namespace
-    name: kube-system
-    state: present
-    kubeconfig: /etc/kubernetes/admin.conf
+- name: Ensure kube-system namespace exists (kubectl)
+  command: kubectl --kubeconfig=/etc/kubernetes/admin.conf get ns kube-system
+  register: ns_check
+  changed_when: false
+  failed_when: false
   when: inventory_hostname == groups['masters'][0]
+
+- name: Create kube-system namespace if missing
+  command: kubectl --kubeconfig=/etc/kubernetes/admin.conf create ns kube-system
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - ns_check.rc != 0
 
 - name: Copy Cilium Helm chart to control-plane
   copy:
@@ -14,7 +18,7 @@
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Install Cilium via Helm (kube-proxy replacement = strict)
+- name: Install/Upgrade Cilium via Helm (kube-proxy replacement strict)
   command: >
     helm upgrade --install cilium
     /root/cilium-{{ cilium_version }}.tgz
