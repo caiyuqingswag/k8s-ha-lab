@@ -1,9 +1,8 @@
-- name: Check if already initialized
+- name: Check if Kubernetes already initialized
   stat:
     path: /etc/kubernetes/admin.conf
   register: adminconf
 
-# 只在第一台 master 渲染并 init
 - name: Render kubeadm.yaml
   template:
     src: kubeadm.yaml.j2
@@ -19,44 +18,64 @@
     - inventory_hostname == groups['masters'][0]
     - not adminconf.stat.exists
 
-- name: Get join command (worker join base command)
-  command: kubeadm token create --print-join-command
-  register: join_cmd
-  changed_when: false
-  when: inventory_hostname == groups['masters'][0]
-
-- name: Assert join command uses controlPlaneEndpoint
-  assert:
-    that:
-      - "'{{ kube_vip_address }}:{{ kube_vip_port }}' in join_cmd.stdout"
-    fail_msg: "Join command is not using VIP endpoint: {{ join_cmd.stdout }}"
-  when: inventory_hostname == groups['masters'][0]
-
 - name: Setup kubectl for root
   shell: |
     mkdir -p /root/.kube
     cp -f /etc/kubernetes/admin.conf /root/.kube/config
+    chown root:root /root/.kube/config
   args:
     creates: /root/.kube/config
-  when: inventory_hostname == groups['masters'][0]
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf.stat.exists
 
-# 无论是否刚 init，都确保拿到可用 join 信息
-# （token/cert-key 可能会过期或可能只跑 join tags）
+- name: Switch kube-vip kubeconfig back to admin.conf after init
+  replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: 'path:\s*/etc/kubernetes/super-admin.conf'
+    replace: 'path: /etc/kubernetes/admin.conf'
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf.stat.exists
+
 - name: Upload certs and get certificate-key (control-plane join)
-  command: kubeadm init phase upload-certs --upload-certs
+  command: >
+    kubeadm init phase upload-certs --upload-certs
+    --kubeconfig=/etc/kubernetes/admin.conf
   register: upload_certs
   changed_when: false
-  when: inventory_hostname == groups['masters'][0]
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf.stat.exists
 
-- name: Get join command (worker join base command)
-  command: kubeadm token create --print-join-command
+- name: Get join command (worker / control-plane base)
+  command: >
+    kubeadm token create --print-join-command
+    --kubeconfig=/etc/kubernetes/admin.conf
   register: join_cmd
   changed_when: false
-  when: inventory_hostname == groups['masters'][0]
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf.stat.exists
+
+- name: Assert join command uses VIP endpoint
+  assert:
+    that:
+      - kube_vip_address ~ ':' ~ kube_vip_port in join_cmd.stdout
+    fail_msg: |
+      Join command does not use VIP endpoint!
+      Expected: {{ kube_vip_address }}:{{ kube_vip_port }}
+      Got:
+      {{ join_cmd.stdout }}
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf.stat.exists
 
 - name: Save cluster join info globally (k8s_cluster host)
   add_host:
     name: k8s_cluster
     join_command: "{{ join_cmd.stdout | mandatory }}"
     certificate_key: "{{ (upload_certs.stdout_lines | last) | mandatory }}"
-  when: inventory_hostname == groups['masters'][0]
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf.stat.exists
