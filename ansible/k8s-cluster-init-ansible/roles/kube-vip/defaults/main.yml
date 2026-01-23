@@ -1,0 +1,22 @@
+kube_vip_image: "ghcr.io/kube-vip/kube-vip"
+kube_vip_version: "v1.0.3"
+
+kube_vip_port: 6443
+kube_vip_subnet: 32
+
+kube_vip_arp: true
+kube_vip_leader_election: true
+
+kube_vip_cp_enable: true
+kube_vip_svc_enable: true
+kube_vip_lb_enable: true
+kube_vip_lb_fwdmethod: "local"
+
+kube_vip_lease_name_cp: "plndr-cp-lock"
+kube_vip_lease_name_svc: "plndr-svcs-lock"
+kube_vip_lease_duration: 5
+kube_vip_renew_deadline: 3
+kube_vip_retry_period: 1
+
+kube_vip_metrics_bind: ":2112"
+kube_vip_mount_admin_conf: true

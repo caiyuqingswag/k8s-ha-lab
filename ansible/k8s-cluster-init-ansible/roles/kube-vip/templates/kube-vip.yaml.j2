@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-vip
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: kube-vip
+spec:
+  hostNetwork: true
+  restartPolicy: Always
+
+  # Ensure it can run on tainted control-plane nodes
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/master"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - operator: "Exists"
+      effect: "NoExecute"
+  containers:
+    - name: kube-vip
+      image: "{{ kube_vip_image }}:{{ kube_vip_version }}"
+      imagePullPolicy: IfNotPresent
+      args:
+        - manager
+      env:
+        # ARP mode (L2)
+        - name: vip_arp
+          value: "{{ 'true' if kube_vip_arp else 'false' }}"
+        # API port (kube-vip uses this for controlplane VIP)
+        - name: port
+          value: "{{ kube_vip_port | string }}"
+        # Node name for leader election identity
+        - name: vip_nodename
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        # VIP interface and address
+        - name: vip_interface
+          value: "{{ kube_vip_interface }}"
+        - name: vip_subnet
+          value: "{{ kube_vip_subnet | string }}"
+        - name: address
+          value: "{{ kube_vip_address }}"
+        # Optional modes (keep defaults consistent with generated manifest)
+        - name: dns_mode
+          value: first
+        - name: dhcp_mode
+          value: ipv4
+        # Control-plane VIP
+        - name: cp_enable
+          value: "{{ 'true' if kube_vip_cp_enable else 'false' }}"
+        - name: cp_namespace
+          value: kube-system
+        # Service LoadBalancer VIP
+        - name: svc_enable
+          value: "{{ 'true' if kube_vip_svc_enable else 'false' }}"
+        - name: svc_leasename
+          value: "{{ kube_vip_lease_name_svc }}"
+        # Leader election
+        - name: vip_leaderelection
+          value: "{{ 'true' if kube_vip_leader_election else 'false' }}"
+        - name: vip_leasename
+          value: "{{ kube_vip_lease_name_cp }}"
+        - name: vip_leaseduration
+          value: "{{ kube_vip_lease_duration | string }}"
+        - name: vip_renewdeadline
+          value: "{{ kube_vip_renew_deadline | string }}"
+        - name: vip_retryperiod
+          value: "{{ kube_vip_retry_period | string }}"
+        # LB mode for Services
+        - name: lb_enable
+          value: "{{ 'true' if kube_vip_lb_enable else 'false' }}"
+        - name: lb_port
+          value: "{{ kube_vip_port | string }}"
+        - name: lb_fwdmethod
+          value: "{{ kube_vip_lb_fwdmethod }}"
+        # Metrics
+        - name: prometheus_server
+          value: "{{ kube_vip_metrics_bind }}"
+      securityContext:
+        capabilities:
+          add:
+            - NET_ADMIN
+            - NET_RAW
+          drop:
+            - ALL
+      {% if kube_vip_mount_admin_conf %}
+      volumeMounts:
+        - mountPath: /etc/kubernetes/admin.conf
+          name: kubeconfig
+          readOnly: true
+      {% endif %}
+  # Keep from your generated manifest; harmless, optional
+  hostAliases:
+    - ip: 127.0.0.1
+      hostnames:
+        - kubernetes
+  {% if kube_vip_mount_admin_conf %}
+  volumes:
+    - name: kubeconfig
+      hostPath:
+        path: /etc/kubernetes/admin.conf
+        type: FileOrCreate
+  {% endif %}

@@ -19,6 +19,19 @@
     - inventory_hostname == groups['masters'][0]
     - not adminconf.stat.exists
 
+- name: Get join command (worker join base command)
+  command: kubeadm token create --print-join-command
+  register: join_cmd
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Assert join command uses controlPlaneEndpoint
+  assert:
+    that:
+      - "'{{ kube_vip_address }}:{{ kube_vip_port }}' in join_cmd.stdout"
+    fail_msg: "Join command is not using VIP endpoint: {{ join_cmd.stdout }}"
+  when: inventory_hostname == groups['masters'][0]
+
 - name: Setup kubectl for root
   shell: |
     mkdir -p /root/.kube

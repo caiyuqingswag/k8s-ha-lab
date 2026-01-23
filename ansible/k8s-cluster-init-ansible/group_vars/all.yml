@@ -6,9 +6,6 @@ pause_image: "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9"
 pod_cidr: "10.244.0.0/16"
 service_cidr: "10.96.0.0/12"
 
-# HA endpoint
-control_plane_endpoint: "172.16.15.60:16443"
-
 # kube-proxy / kubelet
 kubeproxy_mode: "nftables"
 cgroup_driver: "systemd"
@@ -17,6 +14,9 @@ cgroup_driver: "systemd"
 system_update_control_host: master1
 
 
-vip: "172.16.15.60/24"
-vip_port: 16443
-interface: "ens3"
+# kube-vip
+kube_vip_address: "172.16.15.60"
+kube_vip_interface: "ens3"
+
+# kubeadm HA endpoint
+control_plane_endpoint: "{{ kube_vip_address }}:{{ kube_vip_port }}"

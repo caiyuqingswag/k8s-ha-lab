@@ -47,12 +47,12 @@
     - common
   tags: common
 
-- name: Deploy Nginx + Keepalived LB
-  hosts: lb_master,lb_backup
-  become: true
-  roles:
-    - lb
-  tags: lb
+#- name: Deploy Nginx + Keepalived LB
+#  hosts: lb_master,lb_backup
+#  become: true
+#  roles:
+#    - lb
+#  tags: lb
 
 - name: Install containerd (all)
   hosts: all
@@ -68,7 +68,14 @@
     - kube
   tags: kube
 
-- name: Kubeadm init on master1 and apply Calico
+- name: Deploy kube-vip (control-plane VIP) on all masters
+  hosts: masters
+  become: true
+  roles:
+    - kube-vip
+  tags: kubevip
+
+- name: Kubeadm init on master1
   hosts: "{{ groups['masters'][0] }}"
   become: true
   serial: 1
@@ -76,9 +83,8 @@
     - import_role:
         name: kubeadm
         tasks_from: init.yml
-
-    - import_role:
-        name: cni
+#    - import_role:
+#        name: cni
   tags: init
 
 - name: Join other masters (control-plane)
