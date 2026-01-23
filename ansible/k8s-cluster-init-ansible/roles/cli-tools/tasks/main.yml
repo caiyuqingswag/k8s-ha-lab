@@ -1,3 +1,2 @@
-helm_version: "v4.0.4"
-helm_archive: "helm-v4.0.4-linux-amd64.tar.gz"
-helm_tmp_dir: "/tmp/helm"
+- import_tasks: helm.yml
+- import_tasks: completion.yml
