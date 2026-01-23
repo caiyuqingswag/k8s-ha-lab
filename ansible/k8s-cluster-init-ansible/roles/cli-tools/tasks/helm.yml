@@ -1,0 +1,43 @@
+- name: Check if helm already installed
+  command: helm version --short
+  register: helm_check
+  failed_when: false
+  changed_when: false
+
+- name: Create temp dir for helm
+  file:
+    path: "{{ helm_tmp_dir }}"
+    state: directory
+  when: helm_check.rc != 0
+
+- name: Copy helm archive to node
+  copy:
+    src: "{{ helm_archive }}"
+    dest: "{{ helm_tmp_dir }}/{{ helm_archive }}"
+  when:
+    - helm_check.rc != 0
+    - inventory_hostname == groups['masters'][0]
+
+- name: Extract helm archive
+  unarchive:
+    src: "{{ helm_tmp_dir }}/{{ helm_archive }}"
+    dest: "{{ helm_tmp_dir }}"
+    remote_src: yes
+  when:
+    - helm_check.rc != 0
+    - inventory_hostname == groups['masters'][0]
+
+- name: Install helm binary
+  copy:
+    src: "{{ helm_tmp_dir }}/linux-amd64/helm"
+    dest: /usr/local/bin/helm
+    mode: "0755"
+    remote_src: yes
+  when:
+    - helm_check.rc != 0
+    - inventory_hostname == groups['masters'][0]
+
+- name: Verify helm installation
+  command: helm version
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]

@@ -1,0 +1,16 @@
+- name: Install bash-completion (dnf / apt)
+  package:
+    name: bash-completion
+    state: present
+
+- name: Install kubectl bash completion
+  shell: kubectl completion bash > /etc/bash_completion.d/kubectl
+  args:
+    creates: /etc/bash_completion.d/kubectl
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install helm bash completion
+  shell: helm completion bash > /etc/bash_completion.d/helm
+  args:
+    creates: /etc/bash_completion.d/helm
+  when: inventory_hostname == groups['masters'][0]
