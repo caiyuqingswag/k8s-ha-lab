@@ -94,6 +94,15 @@
     - cli-tools
   tags:
     - cli
+    -
+- name: Deploy Cilium CNI (kube-proxy replacement)
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - import_role:
+        name: rni
+  tags:
+    - cilium
 
 - name: Join other masters (control-plane)
   hosts: masters
