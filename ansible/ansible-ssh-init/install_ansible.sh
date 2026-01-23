@@ -18,6 +18,7 @@ timeout = 10
 forks = 5
 EOF
 
+
 if [ ! -f "$PUBKEY" ]; then
   echo "[INFO] 生成 SSH key..."
   mkdir -p /root/.ssh
