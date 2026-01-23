@@ -94,7 +94,7 @@
     - cli-tools
   tags:
     - cli
-    -
+
 - name: Deploy Cilium CNI (kube-proxy replacement)
   hosts: "{{ groups['masters'][0] }}"
   become: true

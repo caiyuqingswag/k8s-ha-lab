@@ -1,0 +1,37 @@
+---
+- name: Check if cilium cli already installed
+  command: cilium version
+  register: cilium_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Copy Cilium CLI archive to node
+  copy:
+    src: cilium-linux-amd64.tar.gz
+    dest: /tmp/cilium-linux-amd64.tar.gz
+    mode: "0644"
+  when: cilium_check.rc != 0
+
+- name: Extract Cilium CLI
+  unarchive:
+    src: /tmp/cilium-linux-amd64.tar.gz
+    dest: /tmp
+    remote_src: true
+  when: cilium_check.rc != 0
+
+- name: Install Cilium CLI binary
+  copy:
+    src: /tmp/cilium/cilium
+    dest: /usr/local/bin/cilium
+    mode: "0755"
+    remote_src: true
+  when: cilium_check.rc != 0
+
+- name: Verify Cilium CLI installation
+  command: cilium version
+  register: cilium_version
+  changed_when: false
+
+- name: Show Cilium CLI version
+  debug:
+    msg: "{{ cilium_version.stdout }}"
