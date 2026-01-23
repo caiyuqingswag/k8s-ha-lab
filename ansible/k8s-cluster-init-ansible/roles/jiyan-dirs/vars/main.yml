@@ -1,0 +1,14 @@
+jiyan_base: /data/jiyan
+
+jiyan_envs:
+  - prod
+  - sit
+  - dev
+
+jiyan_components:
+  mysql: 999
+  mongodb: 999
+  redis: 999
+  rabbitmq: 999
+  influxdb: 1000
+  minio: 1000

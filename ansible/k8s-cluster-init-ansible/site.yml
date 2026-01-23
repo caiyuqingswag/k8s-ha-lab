@@ -123,3 +123,19 @@
         name: kubeadm
         tasks_from: join_workers.yml
   tags: join_workers
+
+- name: Deploy NFS server
+  hosts: nfs-server
+  become: true
+  roles:
+    - nfs-server
+  tags:
+    - nfs
+
+- name: Init jiyan directories on NFS server
+  hosts: nfs-server
+  become: true
+  roles:
+    - jiyan-dirs
+  tags:
+    - jiyan

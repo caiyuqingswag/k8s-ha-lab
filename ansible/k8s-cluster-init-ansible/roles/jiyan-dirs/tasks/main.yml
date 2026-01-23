@@ -1,0 +1,23 @@
+- name: Create jiyan directories
+  file:
+    path: "{{ jiyan_base }}/{{ item.0 }}/{{ item.1 }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ jiyan_envs | product(jiyan_components.keys()) | list }}"
+
+- name: Set ownership for jiyan directories
+  file:
+    path: "{{ jiyan_base }}/{{ item.0 }}/{{ item.1 }}"
+    owner: "{{ jiyan_components[item.1] }}"
+    group: "{{ jiyan_components[item.1] }}"
+    recurse: true
+  loop: "{{ jiyan_envs | product(jiyan_components.keys()) | list }}"
+
+- name: Show directory structure
+  command: tree -d {{ jiyan_base }}
+  register: jiyan_tree
+  changed_when: false
+  failed_when: false
+
+- debug:
+    msg: "{{ jiyan_tree.stdout_lines | default([]) }}"
