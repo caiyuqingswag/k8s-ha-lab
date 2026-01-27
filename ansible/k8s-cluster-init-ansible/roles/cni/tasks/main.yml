@@ -37,26 +37,27 @@
       # IPAM
       - --set
       - ipam.mode=kubernetes
-      # Tunnel mode
+      # tunnel (Helm values!)
       - --set
-      - routing-mode=tunnel
+      - routingMode=tunnel
       - --set
-      - tunnel-protocol=vxlan
-      # NodePort (跨节点必须)
+      - tunnelProtocol=vxlan
+      # NodePort (Helm values!)
       - --set
-      - enable-node-port=true
+      - enableNodePort=true
       - --set
-      - enable-host-reachable-services=true
+      - enableHostReachableServices=true
       - --set
-      - nodeport-addresses=0.0.0.0/0
+      - nodePortAddresses={0.0.0.0/0}
       - --set
-      - node-port-bind-protection=false
-      # API Server
+      - nodePortBindProtection=false
+      # apiserver
       - --set
       - k8sServiceHost={{ k8s_service_host }}
       - --set
       - k8sServicePort={{ k8s_service_port }}
   when: inventory_hostname == groups['masters'][0]
+
 
 
 
