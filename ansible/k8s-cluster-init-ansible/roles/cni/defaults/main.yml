@@ -7,3 +7,12 @@ k8s_service_port: 6443
 
 # kube-proxy replacement
 cilium_kubeproxy_replacement: true
+
+# ===== Cilium 平台级策略（关键） =====
+cilium_routing_mode: tunnel
+cilium_tunnel_protocol: vxlan
+
+# NodePort 行为（你刚刚手动验证成功的 3 个）
+cilium_enable_host_reachable_services: "true"
+cilium_nodeport_addresses: "0.0.0.0/0"
+cilium_nodeport_bind_protection: "false"

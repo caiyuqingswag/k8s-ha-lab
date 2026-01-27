@@ -1,0 +1,21 @@
+# ===============================
+# Cilium Helm values (platform)
+# ===============================
+
+kubeProxyReplacement: {{ cilium_kubeproxy_replacement | lower }}
+
+ipam:
+  mode: kubernetes
+
+routingMode: {{ cilium_routing_mode }}
+tunnelProtocol: {{ cilium_tunnel_protocol }}
+
+# 🔑 关键：直接写进 cilium-config
+extraConfig:
+  enable-host-reachable-services: "{{ cilium_enable_host_reachable_services }}"
+  nodeport-addresses: "{{ cilium_nodeport_addresses }}"
+  node-port-bind-protection: "{{ cilium_nodeport_bind_protection }}"
+
+# kube-apiserver
+k8sServiceHost: "{{ k8s_service_host }}"
+k8sServicePort: {{ k8s_service_port }}

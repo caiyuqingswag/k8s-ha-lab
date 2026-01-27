@@ -18,6 +18,13 @@
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
+- name: Render Cilium values.yaml
+  template:
+    src: cilium-values.yaml.j2
+    dest: /root/cilium-values.yaml
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
 - name: Install Cilium via Helm
   command:
     argv:
@@ -26,37 +33,16 @@
       - --install
       - cilium
       - /root/cilium-{{ cilium_version }}.tgz
+      - -f
+      - /root/cilium-values.yaml
+      - --reset-values
       - --namespace
       - "{{ cilium_namespace }}"
       - --create-namespace
       - --kubeconfig
       - /etc/kubernetes/admin.conf
-      # kube-proxy replacement
-      - --set
-      - kubeProxyReplacement=true
-      # IPAM
-      - --set
-      - ipam.mode=kubernetes
-      # tunnel (Helm values!)
-      - --set
-      - routingMode=tunnel
-      - --set
-      - tunnelProtocol=vxlan
-      # NodePort (Helm values!)
-      - --set
-      - enableNodePort=true
-      - --set
-      - enableHostReachableServices=true
-      - --set
-      - nodePortAddresses={0.0.0.0/0}
-      - --set
-      - nodePortBindProtection=false
-      # apiserver
-      - --set
-      - k8sServiceHost={{ k8s_service_host }}
-      - --set
-      - k8sServicePort={{ k8s_service_port }}
   when: inventory_hostname == groups['masters'][0]
+
 
 
 
