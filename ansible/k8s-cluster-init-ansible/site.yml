@@ -132,10 +132,10 @@
   tags:
     - nfs
 
-- name: Init jiyan directories on NFS server
+- name: Init directories on NFS server
   hosts: nfs-server
   become: true
   roles:
-    - jiyan-dirs
+    - dirs
   tags:
-    - jiyan
+    - dir
