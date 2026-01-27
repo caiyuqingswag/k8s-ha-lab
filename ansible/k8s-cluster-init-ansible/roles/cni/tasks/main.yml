@@ -31,27 +31,33 @@
       - --create-namespace
       - --kubeconfig
       - /etc/kubernetes/admin.conf
+      # kube-proxy replacement
       - --set
       - kubeProxyReplacement=true
+      # IPAM
       - --set
       - ipam.mode=kubernetes
+      # Tunnel mode
       - --set
-      - routingMode=tunnel
+      - routing-mode=tunnel
       - --set
-      - tunnelProtocol=vxlan
+      - tunnel-protocol=vxlan
+      # NodePort (跨节点必须)
       - --set
-      - enableNodePort=true
+      - enable-node-port=true
       - --set
-      - enableHostReachableServices=true
+      - enable-host-reachable-services=true
       - --set
-      - nodePortAddresses=0.0.0.0/0
+      - nodeport-addresses=0.0.0.0/0
       - --set
-      - nodePortBindProtection=false
+      - node-port-bind-protection=false
+      # API Server
       - --set
       - k8sServiceHost={{ k8s_service_host }}
       - --set
       - k8sServicePort={{ k8s_service_port }}
   when: inventory_hostname == groups['masters'][0]
+
 
 
 
