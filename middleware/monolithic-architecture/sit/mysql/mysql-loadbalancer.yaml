@@ -3,10 +3,12 @@ kind: Service
 metadata:
   name: mysql
   namespace: sit-basic
+  annotations:
+    kube-vip.io/loadbalancer: "true"
 spec:
   type: LoadBalancer
-  selector:
-    app: mysql
   ports:
     - port: 3306
       targetPort: 3306
+  selector:
+    app: mysql
