@@ -39,6 +39,3 @@
     remote_src: yes
   when: cilium_check.rc != 0
 
-- name: Verify cilium cli installation
-  command: cilium version
-  changed_when: false
