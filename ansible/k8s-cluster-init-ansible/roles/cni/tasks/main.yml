@@ -18,23 +18,41 @@
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Install/Upgrade Cilium via Helm (kube-proxy replacement strict)
-  command: >
-    helm upgrade --install cilium
-    /root/cilium-{{ cilium_version }}.tgz
-    --namespace {{ cilium_namespace }}
-    --kubeconfig /etc/kubernetes/admin.conf }}
-    --set kubeProxyReplacement=true
-    --set ipam.mode=kubernetes
-    --set routingMode=tunnel
-    --set tunnelProtocol=vxlan
-    --set enableNodePort=true
-    --set enableHostReachableServices=true
-    --set nodePortAddresses="{0.0.0.0/0}"
-    --set nodePortBindProtection=false
-    --set k8sServiceHost={{ k8s_service_host }}
-    --set k8sServicePort={{ k8s_service_port }}
+- name: Install Cilium via Helm
+  command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - cilium
+      - /root/cilium-{{ cilium_version }}.tgz
+      - --namespace
+      - "{{ cilium_namespace }}"
+      - --create-namespace
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --set
+      - kubeProxyReplacement=true
+      - --set
+      - ipam.mode=kubernetes
+      - --set
+      - routingMode=tunnel
+      - --set
+      - tunnelProtocol=vxlan
+      - --set
+      - enableNodePort=true
+      - --set
+      - enableHostReachableServices=true
+      - --set
+      - nodePortAddresses=0.0.0.0/0
+      - --set
+      - nodePortBindProtection=false
+      - --set
+      - k8sServiceHost={{ k8s_service_host }}
+      - --set
+      - k8sServicePort={{ k8s_service_port }}
   when: inventory_hostname == groups['masters'][0]
+
 
 
 
