@@ -13,11 +13,11 @@
     recurse: true
   loop: "{{ dir_envs | product(dir_components.keys()) | list }}"
 
-- name: Show directory structure
-  command: tree -d {{ dir_base }}
-  register: dir_tree
-  changed_when: false
-  failed_when: false
+- name: Find directories
+  find:
+    paths: "{{ dir_base }}"
+    file_type: directory
+  register: found_dirs
 
 - debug:
-    msg: "{{ dir_tree.stdout_lines | default([]) }}"
+    msg: "{{ found_dirs.files | map(attribute='path') | list }}"
