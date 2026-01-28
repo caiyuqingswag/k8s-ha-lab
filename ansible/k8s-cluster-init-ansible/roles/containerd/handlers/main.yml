@@ -2,6 +2,7 @@
   systemd:
     name: containerd
     state: restarted
+    daemon_reload: yes
 
 - name: Restart journald
   systemd:

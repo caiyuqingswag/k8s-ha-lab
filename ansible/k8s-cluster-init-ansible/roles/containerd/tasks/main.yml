@@ -60,32 +60,21 @@
     dest: /etc/containerd/certs.d/docker.io/hosts.toml
     mode: "0644"
     content: |
-      server = "https://docker.io"
+      server = "https://registry-1.docker.io"
 
       [host."https://docker.m.daocloud.io"]
         capabilities = ["pull", "resolve"]
+        override_path = true
 
       [host."https://ccr.ccs.tencentyun.com"]
         capabilities = ["pull", "resolve"]
-
-      [host."https://docker.1ms.run"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://dhub.kubesre.xyz"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.kejilion.pro"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.xuanyuan.me"]
-        capabilities = ["pull", "resolve"]
+        override_path = true
 
       [host."https://docker.hlmirror.com"]
         capabilities = ["pull", "resolve"]
-
-      [host."https://docker.melikeme.cn"]
-        capabilities = ["pull", "resolve"]
+        override_path = true
   notify: Restart containerd
+
 
 
 - name: Configure registry.k8s.io mirrors
@@ -97,28 +86,13 @@
 
       [host."https://docker.m.daocloud.io"]
         capabilities = ["pull", "resolve"]
+        override_path = true
 
       [host."https://ccr.ccs.tencentyun.com"]
         capabilities = ["pull", "resolve"]
-
-      [host."https://docker.1ms.run"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://dhub.kubesre.xyz"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.kejilion.pro"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.xuanyuan.me"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.hlmirror.com"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.melikeme.cn"]
-        capabilities = ["pull", "resolve"]
+        override_path = true
   notify: Restart containerd
+
 
 
 - name: Configure gcr.io mirror
@@ -130,7 +104,9 @@
 
       [host."https://docker.m.daocloud.io"]
         capabilities = ["pull", "resolve"]
+        override_path = true
   notify: Restart containerd
+
 
 - name: Configure ghcr.io mirror
   copy:
@@ -141,6 +117,7 @@
 
       [host."https://docker.m.daocloud.io"]
         capabilities = ["pull", "resolve"]
+        override_path = true
   notify: Restart containerd
 
 - name: Configure quay.io mirror
@@ -152,9 +129,8 @@
 
       [host."https://docker.m.daocloud.io"]
         capabilities = ["pull", "resolve"]
+        override_path = true
   notify: Restart containerd
-
-
 
 - name: Configure crictl
   copy:
