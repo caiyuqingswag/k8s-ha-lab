@@ -4,7 +4,7 @@
     content: |
       [kubernetes]
       name=Kubernetes
-      baseurl=https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.34/rpm/
+      baseurl=https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.35/rpm/
       enabled=1
       gpgcheck=0
     mode: "0644"
