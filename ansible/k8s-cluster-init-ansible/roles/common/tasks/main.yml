@@ -72,6 +72,7 @@
   copy:
     dest: /etc/modules-load.d/k8s.conf
     content: |
+      overlay
       br_netfilter
       nf_conntrack
     mode: "0644"
@@ -79,6 +80,7 @@
 - name: Load kernel modules now
   command: modprobe {{ item }}
   loop:
+    - overlay
     - br_netfilter
     - nf_conntrack
   failed_when: false
