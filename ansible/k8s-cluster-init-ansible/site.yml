@@ -104,6 +104,15 @@
   tags:
     - cilium
 
+- name: Deploy kube-vip LoadBalancer (Service type=LoadBalancer)
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - import_role:
+        name: kube-vip-loadbalance
+  tags:
+    - kubevip-lb
+
 - name: Join other masters (control-plane)
   hosts: masters
   become: true
