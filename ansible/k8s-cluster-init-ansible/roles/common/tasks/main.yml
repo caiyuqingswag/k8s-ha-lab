@@ -5,6 +5,7 @@
 - name: Build hosts block
   set_fact:
     hosts_block: |
+      {{ kubevip_api_ip }} {{ kubevip_api_name }}
       {% for h in groups['masters'] %}
       {{ hostvars[h].ansible_host }} {{ h }}
       {% endfor %}

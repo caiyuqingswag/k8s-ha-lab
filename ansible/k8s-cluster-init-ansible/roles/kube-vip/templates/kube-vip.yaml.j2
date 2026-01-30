@@ -8,15 +8,6 @@ metadata:
 spec:
   hostNetwork: true
   restartPolicy: Always
-  tolerations:
-    - key: "node-role.kubernetes.io/control-plane"
-      operator: "Exists"
-      effect: "NoSchedule"
-    - key: "node-role.kubernetes.io/master"
-      operator: "Exists"
-      effect: "NoSchedule"
-    - operator: "Exists"
-      effect: "NoExecute"
   containers:
     - name: kube-vip
       image: "{{ kube_vip_image }}:{{ kube_vip_version }}"
