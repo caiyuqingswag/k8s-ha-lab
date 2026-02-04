@@ -64,7 +64,7 @@ grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' "$INVENTORY" | while read -r host; do
     echo "配置 sudo NOPASSWD（ubuntu 用户）..."
     ansible "$host" \
       -m ansible.builtin.copy \
-      -a "dest=/etc/sudoers.d/90-ansible-ubuntu content='ubuntu ALL=(ALL) NOPASSWD:/usr/bin/apt,/usr/bin/systemctl,/usr/bin/reboot\n' owner=root group=root mode=0440" \
+      -a "dest=/etc/sudoers.d/90-ansible-ubuntu content='ubuntu ALL=(ALL) NOPASSWD:ALL\n' owner=root group=root mode=0440" \
       --ask-pass \
       --become \
       --ask-become-pass || continue
