@@ -17,5 +17,5 @@ spec:
     - timeo=600
     - retrans=2
   nfs:
-    server: 172.16.15.66
+    server: 172.16.15.76
     path: /data/jiyan/dev/mongodb
