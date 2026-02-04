@@ -1,25 +1,27 @@
 - name: Ensure /etc/kubernetes/manifests exists
-  file:
+  ansible.builtin.file:
     path: /etc/kubernetes/manifests
     state: directory
     mode: "0755"
 
 - name: Render kube-vip manifest for primary master
-  template:
+  ansible.builtin.template:
     src: kube-vip.yaml.j2
     dest: /etc/kubernetes/manifests/kube-vip.yaml
     mode: "0644"
   when: inventory_hostname in groups['master1-vip']
 
+
 - name: Render kube-vip manifest for backup masters
-  template:
+  ansible.builtin.template:
     src: kube-vip-othermaster.yaml.j2
     dest: /etc/kubernetes/manifests/kube-vip.yaml
     mode: "0644"
   when: inventory_hostname in groups['othermaster-vip']
 
+
 - name: Restart kubelet to pick up kube-vip static pod (optional)
-  service:
+  ansible.builtin.systemd:
     name: kubelet
     state: restarted
   when:
