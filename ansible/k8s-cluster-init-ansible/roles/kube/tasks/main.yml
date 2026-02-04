@@ -1,43 +1,88 @@
-- name: Add kubernetes repo (Aliyun v1.34)
-  copy:
-    dest: /etc/yum.repos.d/kubernetes.repo
-    content: |
-      [kubernetes]
-      name=Kubernetes
-      baseurl=https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.35/rpm/
-      enabled=1
-      gpgcheck=0
+---
+# =========================
+# Kubernetes apt repo (Aliyun)
+# =========================
+
+- name: Install apt prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - apt-transport-https
+    state: present
+    update_cache: true
+
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Add Kubernetes GPG key (Aliyun)
+  ansible.builtin.get_url:
+    url: https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.35/deb/Release.key
+    dest: /etc/apt/keyrings/kubernetes.asc
     mode: "0644"
 
-- name: Make cache
-  command: dnf makecache -y
+- name: Add Kubernetes apt repository (Aliyun v1.35)
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/etc/apt/keyrings/kubernetes.asc]
+      https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.35/deb/ /
+    filename: kubernetes
+    state: present
+
+# =========================
+# Install kubelet / kubeadm
+# =========================
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
   changed_when: false
 
 - name: Install kubelet and kubeadm (all nodes)
-  dnf:
+  ansible.builtin.apt:
     name:
-      - "kubelet-{{ k8s_version }}"
-      - "kubeadm-{{ k8s_version }}"
+      - "kubelet={{ k8s_version }}-*"
+      - "kubeadm={{ k8s_version }}-*"
     state: present
 
 - name: Install kubectl (masters only)
-  dnf:
-    name: "kubectl-{{ k8s_version }}"
+  ansible.builtin.apt:
+    name: "kubectl={{ k8s_version }}-*"
     state: present
   when: "'masters' in group_names"
 
+# =========================
+# Hold versions (important!)
+# =========================
+
+- name: Hold kube packages
+  ansible.builtin.command: >
+    apt-mark hold kubelet kubeadm kubectl
+  changed_when: false
+
+# =========================
+# Enable kubelet
+# =========================
+
 - name: Enable and start kubelet
-  systemd:
+  ansible.builtin.systemd:
     name: kubelet
     enabled: true
     state: started
 
-- name: Pre-pull images (masters only)
-  command: >
+# =========================
+# Pre-pull images (masters)
+# =========================
+
+- name: Pre-pull Kubernetes images (masters only)
+  ansible.builtin.command: >
     kubeadm config images pull
     --kubernetes-version={{ k8s_version }}
     --image-repository={{ image_repo }}
   when: "'masters' in group_names"
   changed_when: false
   failed_when: false
-
