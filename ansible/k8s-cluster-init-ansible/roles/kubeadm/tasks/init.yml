@@ -1,80 +1,87 @@
 - name: Check if Kubernetes already initialized
-  stat:
+  ansible.builtin.stat:
     path: /etc/kubernetes/admin.conf
   register: adminconf
 
-# ========= kubeadm.yaml =========
 - name: Render kubeadm.yaml
-  template:
+  ansible.builtin.template:
     src: kubeadm.yaml.j2
-    dest: /root/kubeadm.yaml
+    dest: /etc/kubernetes/kubeadm.yaml
     mode: "0644"
   when:
     - inventory_hostname == groups['masters'][0]
     - not adminconf.stat.exists
 
-# ========= kubeadm init =========
 - name: kubeadm init
-  command: kubeadm init --config=/root/kubeadm.yaml --skip-phases=addon/kube-proxy
+  ansible.builtin.command: >
+    kubeadm init
+    --config=/etc/kubernetes/kubeadm.yaml
+    --skip-phases=addon/kube-proxy
   register: kubeadm_init
   when:
     - inventory_hostname == groups['masters'][0]
     - not adminconf.stat.exists
 
-# ========= init 后重新检查 admin.conf =========
 - name: Re-check admin.conf after init
-  stat:
+  ansible.builtin.stat:
     path: /etc/kubernetes/admin.conf
   register: adminconf_after
   when:
     - inventory_hostname == groups['masters'][0]
     - kubeadm_init is defined
-    - kubeadm_init is changed
+    - kubeadm_init.changed
 
-# ========= kubectl for root =========
-- name: Setup kubectl for root
-  shell: |
-    mkdir -p /root/.kube
-    cp -f /etc/kubernetes/admin.conf /root/.kube/config
-    chown root:root /root/.kube/config
-  args:
-    creates: /root/.kube/config
+- name: Ensure /root/.kube exists
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
   when:
     - inventory_hostname == groups['masters'][0]
     - adminconf_after.stat.exists
 
-# ========= 切 kube-vip 为 steady（关键！）=========
-- name: Switch kube-vip kubeconfig back to admin.conf after init
-  replace:
+- name: Install admin kubeconfig for root
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf_after.stat.exists
+
+- name: Switch kube-vip kubeconfig to admin.conf
+  ansible.builtin.replace:
     path: /etc/kubernetes/manifests/kube-vip.yaml
     regexp: 'path:\s*/etc/kubernetes/super-admin\.conf'
     replace: 'path: /etc/kubernetes/admin.conf'
   when:
     - inventory_hostname == groups['masters'][0]
     - kubeadm_init is defined
-    - kubeadm_init is changed
+    - kubeadm_init.changed
 
-# ========= upload-certs =========
-- name: Upload certs and get certificate-key (control-plane join)
-  command: kubeadm init phase upload-certs --upload-certs
+- name: Upload certs and get certificate-key
+  ansible.builtin.command: kubeadm init phase upload-certs --upload-certs
   register: upload_certs
   changed_when: false
   when:
     - inventory_hostname == groups['masters'][0]
     - adminconf_after.stat.exists
 
-# ========= join command =========
-- name: Get join command (worker / control-plane base)
-  command: kubeadm token create --print-join-command
+- name: Get join command
+  ansible.builtin.command: kubeadm token create --print-join-command
   register: join_cmd
   changed_when: false
   when:
     - inventory_hostname == groups['masters'][0]
     - adminconf_after.stat.exists
 
-# ========= VIP 校验 =========
 - name: Assert join command uses VIP endpoint
-  assert:
+  ansible.builtin.assert:
     that:
       - kube_vip_address ~ ':' ~ kube_vip_port in join_cmd.stdout
     fail_msg: |
@@ -86,12 +93,11 @@
     - inventory_hostname == groups['masters'][0]
     - adminconf_after.stat.exists
 
-# ========= 发布 join 信息 =========
-- name: Save cluster join info globally (k8s_cluster host)
-  add_host:
+- name: Save cluster join info globally
+  ansible.builtin.add_host:
     name: k8s_cluster
     join_command: "{{ join_cmd.stdout | mandatory }}"
-    certificate_key: "{{ (upload_certs.stdout_lines | last) | mandatory }}"
+    certificate_key: "{{ upload_certs.stdout_lines | last | mandatory }}"
   when:
     - inventory_hostname == groups['masters'][0]
     - adminconf_after.stat.exists
