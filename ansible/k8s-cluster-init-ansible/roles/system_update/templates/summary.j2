@@ -1,10 +1,28 @@
-HOST             BEFORE_KERNEL                           AFTER_KERNEL                            CHANGED  REBOOT_NEEDED  REBOOT_NOW
+HOST             OS_BEFORE                OS_AFTER                 BEFORE_KERNEL                           AFTER_KERNEL                            OS_CHANGED  KERNEL_CHANGED  REBOOT_NEEDED  REBOOT_NOW
 {% for h in groups['all'] | sort %}
+{%- set osb = (hostvars[h].os_before.stdout if (hostvars[h].os_before is defined and hostvars[h].os_before.stdout is defined) else 'N/A') -%}
+{%- set osa = (hostvars[h].os_after.stdout if (hostvars[h].os_after is defined and hostvars[h].os_after.stdout is defined) else 'N/A') -%}
+{%- set osc = ('YES' if (hostvars[h].os_changed | default(false)) else 'NO') -%}
+
 {%- set kb = (hostvars[h].kernel_before.stdout if (hostvars[h].kernel_before is defined and hostvars[h].kernel_before.stdout is defined) else 'N/A') -%}
 {%- set ka = (hostvars[h].kernel_after.stdout if (hostvars[h].kernel_after is defined and hostvars[h].kernel_after.stdout is defined) else 'N/A') -%}
-{%- set ch = ('YES' if (hostvars[h].kernel_changed | default(false)) else 'NO') -%}
+{%- set kc = ('YES' if (hostvars[h].kernel_changed | default(false)) else 'NO') -%}
+
 {%- set rn = ('YES' if (hostvars[h].reboot_needed | default(false)) else 'NO') -%}
 {%- set is_ctl = (hostvars[h].is_control_node | default(false)) -%}
 {%- set rnow = ('NO (control)' if is_ctl else ('YES' if (hostvars[h].system_update_reboot | default(true) and hostvars[h].reboot_needed | default(false)) else 'NO')) -%}
-{{ "%-16s %-38s %-38s %-7s %-13s %-10s"|format(h, kb, ka, ch, rn, rnow) }}
+
+{{ "%-16s %-24s %-24s %-38s %-38s %-10s %-14s %-13s %-10s"
+   | format(
+     h,
+     osb,
+     osa,
+     kb,
+     ka,
+     osc,
+     kc,
+     rn,
+     rnow
+   )
+}}
 {% endfor %}

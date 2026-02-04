@@ -1,23 +1,28 @@
-# dnf 锁等待时间，避免并发更新导致失败（秒）
-system_update_dnf_lock_timeout: 120
-
-# 是否允许控制节点也重启（默认 false，避免把 ansible 控制端干掉）
-system_update_reboot_control_node: false
-
 # 是否启用更新
 system_update_enabled: true
 
 # 是否执行重启（推荐 true）
 system_update_reboot: true
 
-# 是否仅在 needs-restarting 判断需要时才重启
+# 是否仅在系统判断需要时才重启（Ubuntu 用 /var/run/reboot-required）
 system_update_reboot_only_if_needed: true
 
-# 控制机（ansible 控制端）IP：用于跳过即时 reboot，最后再延迟重启
+# 控制机（ansible 控制端）主机名：用于跳过即时 reboot，最后再延迟重启
 system_update_control_host: "master1"
+
+# 是否允许控制节点也重启（默认 false，避免把 ansible 控制端干掉）
+system_update_reboot_control_node: false
 
 # 控制机延迟重启秒数（确保 playbook 能结束并写 summary）
 system_update_control_reboot_delay_seconds: 60
+
+# apt 锁等待时间，避免并发更新导致失败（秒）
+system_update_pkg_lock_timeout: 120
+
+# apt 行为
+system_update_apt_upgrade: "dist"     # safe | full-upgrade(dist)；ansible 用 dist
+system_update_apt_autoremove: true
+system_update_apt_autoclean: true
 
 # reboot 参数
 system_update_reboot_timeout: 1200

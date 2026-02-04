@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# 禁止 root / sudo 执行
+if [ "$EUID" -eq 0 ]; then
+  echo "❌ 请不要用 sudo 或 root 运行此脚本"
+  exit 1
+fi
+
 INVENTORY="hosts.ini"
 MAX_RETRY=3
 PUBKEY="$HOME/.ssh/id_ed25519.pub"
@@ -10,15 +16,14 @@ echo "========== 初始化 Ansible 控制机（Ubuntu） =========="
 
 # 1. 安装 Ansible（控制机）
 if ! command -v ansible >/dev/null 2>&1; then
-  apt update
-  apt install -y software-properties-common
-  apt install -y ansible-core sshpass
+  sudo apt update
+  sudo apt install -y software-properties-common ansible-core sshpass
 fi
 
 # 2. 安装必要 collection
 ansible-galaxy collection install ansible.posix
 
-# 3. Ansible 配置
+# 3. Ansible 配置（当前目录）
 cat > ansible.cfg <<EOF
 [defaults]
 host_key_checking = False
@@ -35,7 +40,7 @@ if [ ! -f "$PUBKEY" ]; then
   ssh-keygen -t ed25519 -N "" -f "$PRIVKEY"
 fi
 
-echo "========== 开始逐台分发 SSH Key =========="
+echo "========== 开始逐台初始化（SSH + sudo） =========="
 
 grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' "$INVENTORY" | while read -r host; do
   [ -z "$host" ] && continue
@@ -44,33 +49,34 @@ grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' "$INVENTORY" | while read -r host; do
   echo "=============================="
   echo "正在处理 $host"
 
-  success=0
-
   for ((i=1; i<=MAX_RETRY; i++)); do
     echo "第 $i 次尝试，请输入 $host 的 ubuntu 用户密码"
 
+    # 1️⃣ 分发 SSH key
     ansible "$host" \
       -m ansible.posix.authorized_key \
       -a "user=ubuntu state=present key='{{ lookup(\"file\", \"$PUBKEY\") }}'" \
       --ask-pass \
       --become \
-      --ask-become-pass
+      --ask-become-pass || continue
 
-    if [ $? -eq 0 ]; then
-      echo "验证免密..."
-      ansible "$host" -m ping -e ansible_become=false
-      success=1
-      break
-    else
-      echo "❌ 密码错误或连接失败"
-    fi
+    # 2️⃣ 配置 sudo NOPASSWD
+    echo "配置 sudo NOPASSWD（ubuntu 用户）..."
+    ansible "$host" \
+      -m ansible.builtin.copy \
+      -a "dest=/etc/sudoers.d/90-ansible-ubuntu content='ubuntu ALL=(ALL) NOPASSWD:/usr/bin/apt,/usr/bin/systemctl,/usr/bin/reboot\n' owner=root group=root mode=0440" \
+      --ask-pass \
+      --become \
+      --ask-become-pass || continue
+
+    # 3️⃣ 验证 SSH + sudo
+    echo "验证 SSH + sudo..."
+    ansible "$host" -m command -a "sudo -n true"
+
+    echo "✅ $host 初始化完成"
+    break
   done
-
-  if [ $success -eq 0 ]; then
-    echo "🚨 $host 连续 $MAX_RETRY 次失败，已跳过"
-  fi
-
 done
 
 echo
-echo "========== 全部完成 =========="
+echo "========== 全部完成（SSH + sudo 已统一） =========="
