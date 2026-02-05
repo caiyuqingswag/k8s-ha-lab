@@ -54,6 +54,29 @@
     - inventory_hostname == groups['masters'][0]
     - adminconf_after.stat.exists
 
+- name: Ensure ~/.kube exists for ansible user
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.kube"
+    state: directory
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+    mode: "0700"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf_after.stat.exists
+
+- name: Install admin kubeconfig for ansible user
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ansible_env.HOME }}/.kube/config"
+    remote_src: true
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+    mode: "0600"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - adminconf_after.stat.exists
+
 - name: Switch kube-vip kubeconfig to admin.conf
   ansible.builtin.replace:
     path: /etc/kubernetes/manifests/kube-vip.yaml
