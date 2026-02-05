@@ -4,18 +4,18 @@
 # =========================
 
 - name: Remove distro containerd (Ubuntu)
-  ansible.builtin.apt:
+  apt:
     name: containerd
     state: absent
     purge: true
   ignore_errors: true
 
 # =========================
-# Docker CE repo (Aliyun - Ubuntu)
+# Docker CE repo (Aliyun)
 # =========================
 
 - name: Install apt prerequisites
-  ansible.builtin.apt:
+  apt:
     name:
       - ca-certificates
       - curl
@@ -25,19 +25,19 @@
     update_cache: true
 
 - name: Ensure apt keyrings dir exists
-  ansible.builtin.file:
+  file:
     path: /etc/apt/keyrings
     state: directory
     mode: "0755"
 
 - name: Add Docker CE GPG key (Aliyun)
-  ansible.builtin.get_url:
+  get_url:
     url: https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
 
-- name: Add Docker CE repo (Aliyun, Ubuntu)
-  ansible.builtin.apt_repository:
+- name: Add Docker CE repo (Aliyun)
+  apt_repository:
     repo: >
       deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc]
       https://mirrors.aliyun.com/docker-ce/linux/ubuntu
@@ -46,11 +46,11 @@
     state: present
 
 # =========================
-# Install containerd.io 2.x
+# Install containerd.io
 # =========================
 
-- name: Install containerd.io (Docker CE)
-  ansible.builtin.apt:
+- name: Install containerd.io
+  apt:
     name: containerd.io
     state: present
     update_cache: true
@@ -59,21 +59,21 @@
 # Install crictl
 # =========================
 
-- name: Copy crictl package
-  ansible.builtin.copy:
+- name: Copy crictl archive
+  copy:
     src: crictl-v1.34.0-linux-amd64.tar.gz
     dest: /tmp/crictl.tar.gz
     mode: "0644"
 
 - name: Extract crictl
-  ansible.builtin.unarchive:
+  unarchive:
     src: /tmp/crictl.tar.gz
     dest: /usr/local/bin
     remote_src: true
     creates: /usr/local/bin/crictl
 
 - name: Ensure crictl executable
-  ansible.builtin.file:
+  file:
     path: /usr/local/bin/crictl
     mode: "0755"
 
@@ -82,7 +82,7 @@
 # =========================
 
 - name: Ensure containerd dirs
-  ansible.builtin.file:
+  file:
     path: "{{ item }}"
     state: directory
     mode: "0755"
@@ -91,22 +91,22 @@
     - /etc/containerd/certs.d
 
 # =========================
-# containerd config (2.x)
+# containerd config
 # =========================
 
 - name: Deploy containerd config.toml
-  ansible.builtin.copy:
+  copy:
     src: config.toml
     dest: /etc/containerd/config.toml
     mode: "0644"
   notify: Restart containerd
 
 # =========================
-# Registry mirrors (certs.d)
+# Registry mirrors
 # =========================
 
-- name: Create certs.d directories
-  ansible.builtin.file:
+- name: Create registry mirror dirs
+  file:
     path: "/etc/containerd/certs.d/{{ item }}"
     state: directory
     mode: "0755"
@@ -117,78 +117,22 @@
     - ghcr.io
     - quay.io
 
-- name: Configure docker.io registry mirrors
-  ansible.builtin.copy:
+- name: Configure docker.io mirror
+  copy:
     dest: /etc/containerd/certs.d/docker.io/hosts.toml
     mode: "0644"
     content: |
       server = "https://docker.io"
-
       [host."https://docker.m.daocloud.io"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://ccr.ccs.tencentyun.com"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.1ms.run"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://dhub.kubesre.xyz"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.kejilion.pro"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.xuanyuan.me"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.hlmirror.com"]
-        capabilities = ["pull", "resolve"]
-
-      [host."https://docker.melikeme.cn"]
         capabilities = ["pull", "resolve"]
   notify: Restart containerd
 
 - name: Configure registry.k8s.io mirror
-  ansible.builtin.copy:
+  copy:
     dest: /etc/containerd/certs.d/registry.k8s.io/hosts.toml
     mode: "0644"
     content: |
       server = "https://registry.k8s.io"
-
-      [host."https://docker.m.daocloud.io"]
-        capabilities = ["pull", "resolve"]
-  notify: Restart containerd
-
-- name: Configure gcr.io mirror
-  ansible.builtin.copy:
-    dest: /etc/containerd/certs.d/gcr.io/hosts.toml
-    mode: "0644"
-    content: |
-      server = "https://gcr.io"
-
-      [host."https://docker.m.daocloud.io"]
-        capabilities = ["pull", "resolve"]
-  notify: Restart containerd
-
-- name: Configure ghcr.io mirror
-  ansible.builtin.copy:
-    dest: /etc/containerd/certs.d/ghcr.io/hosts.toml
-    mode: "0644"
-    content: |
-      server = "https://ghcr.io"
-
-      [host."https://docker.m.daocloud.io"]
-        capabilities = ["pull", "resolve"]
-  notify: Restart containerd
-
-- name: Configure quay.io mirror
-  ansible.builtin.copy:
-    dest: /etc/containerd/certs.d/quay.io/hosts.toml
-    mode: "0644"
-    content: |
-      server = "https://quay.io"
-
       [host."https://docker.m.daocloud.io"]
         capabilities = ["pull", "resolve"]
   notify: Restart containerd
@@ -198,7 +142,7 @@
 # =========================
 
 - name: Configure crictl
-  ansible.builtin.copy:
+  copy:
     dest: /etc/crictl.yaml
     mode: "0644"
     content: |
@@ -208,50 +152,32 @@
       debug: false
 
 # =========================
-# journald tuning
+# 🔴 关键：立刻应用 containerd 配置
 # =========================
 
-- name: Ensure journald drop-in directory exists
-  ansible.builtin.file:
-    path: /etc/systemd/journald.conf.d
-    state: directory
-    mode: "0755"
+- name: Apply containerd config immediately
+  meta: flush_handlers
 
-- name: Ensure persistent journal dir exists
-  ansible.builtin.file:
-    path: /var/log/journal
-    state: directory
-    mode: "0755"
-
-- name: Configure journald log rotation
-  ansible.builtin.copy:
-    dest: /etc/systemd/journald.conf.d/99-k8s.conf
-    mode: "0644"
-    content: |
-      [Journal]
-      Storage=persistent
-      Compress=yes
-      SystemMaxUse=1G
-      SystemKeepFree=2G
-      SystemMaxFileSize=100M
-      MaxRetentionSec=30day
-      MaxFileSec=7day
-  notify: Restart journald
+- name: Wait for containerd socket
+  wait_for:
+    path: /run/containerd/containerd.sock
+    state: present
+    timeout: 30
 
 # =========================
 # Enable & verify
 # =========================
 
 - name: Enable and start containerd
-  ansible.builtin.systemd:
+  systemd:
     name: containerd
     enabled: true
     state: started
 
 - name: Verify containerd version
-  ansible.builtin.command: containerd --version
+  command: containerd --version
   changed_when: false
 
 - name: Verify crictl
-  ansible.builtin.command: crictl version
+  command: crictl --version
   changed_when: false

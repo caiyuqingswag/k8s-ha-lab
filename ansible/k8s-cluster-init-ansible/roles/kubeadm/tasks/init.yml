@@ -3,6 +3,17 @@
     path: /etc/kubernetes/admin.conf
   register: adminconf
 
+- name: Ensure /etc/kubernetes directory exists
+  ansible.builtin.file:
+    path: /etc/kubernetes
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - not adminconf.stat.exists
+
 - name: Render kubeadm.yaml
   ansible.builtin.template:
     src: kubeadm.yaml.j2

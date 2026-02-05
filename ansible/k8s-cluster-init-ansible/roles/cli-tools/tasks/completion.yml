@@ -1,16 +1,37 @@
-- name: Install bash-completion (dnf / apt)
-  package:
+- name: Ensure bash-completion is installed
+  ansible.builtin.package:
     name: bash-completion
     state: present
 
+- name: Ensure bash_completion.d directory exists
+  ansible.builtin.file:
+    path: /etc/bash_completion.d
+    state: directory
+    mode: "0755"
+
+- name: Generate kubectl bash completion
+  ansible.builtin.command: kubectl completion bash
+  register: kubectl_completion
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
 - name: Install kubectl bash completion
-  shell: kubectl completion bash > /etc/bash_completion.d/kubectl
-  args:
-    creates: /etc/bash_completion.d/kubectl
+  ansible.builtin.copy:
+    dest: /etc/bash_completion.d/kubectl
+    content: "{{ kubectl_completion.stdout }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+
+- name: Generate helm bash completion
+  ansible.builtin.command: helm completion bash
+  register: helm_completion
+  changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
 - name: Install helm bash completion
-  shell: helm completion bash > /etc/bash_completion.d/helm
-  args:
-    creates: /etc/bash_completion.d/helm
+  ansible.builtin.copy:
+    dest: /etc/bash_completion.d/helm
+    content: "{{ helm_completion.stdout }}"
+    mode: "0644"
   when: inventory_hostname == groups['masters'][0]

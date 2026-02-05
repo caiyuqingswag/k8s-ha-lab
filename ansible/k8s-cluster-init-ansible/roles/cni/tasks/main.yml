@@ -1,75 +1,63 @@
-- name: Ensure kube-system namespace exists (kubectl)
-  command: kubectl --kubeconfig=/etc/kubernetes/admin.conf get ns kube-system
+- name: Check if kube-system namespace exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - ns
+      - kube-system
   register: ns_check
   changed_when: false
   failed_when: false
   when: inventory_hostname == groups['masters'][0]
 
 - name: Create kube-system namespace if missing
-  command: kubectl --kubeconfig=/etc/kubernetes/admin.conf create ns kube-system
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - ns
+      - kube-system
   when:
     - inventory_hostname == groups['masters'][0]
     - ns_check.rc != 0
 
+- name: Ensure Cilium working directory exists
+  ansible.builtin.file:
+    path: /etc/kubernetes/cilium
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
 - name: Copy Cilium Helm chart to control-plane
-  copy:
+  ansible.builtin.copy:
     src: cilium-{{ cilium_version }}.tgz
-    dest: /root/cilium-{{ cilium_version }}.tgz
+    dest: /etc/kubernetes/cilium/cilium-{{ cilium_version }}.tgz
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
 - name: Render Cilium values.yaml
-  template:
+  ansible.builtin.template:
     src: cilium-values.yaml.j2
-    dest: /root/cilium-values.yaml
+    dest: /etc/kubernetes/cilium/values.yaml
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Install Cilium via Helm
-  command:
+- name: Install or upgrade Cilium via Helm
+  ansible.builtin.command:
     argv:
       - helm
       - upgrade
       - --install
       - cilium
-      - /root/cilium-{{ cilium_version }}.tgz
-      - -f
-      - /root/cilium-values.yaml
-      - --reset-values
+      - /etc/kubernetes/cilium/cilium-{{ cilium_version }}.tgz
       - --namespace
       - "{{ cilium_namespace }}"
       - --create-namespace
+      - -f
+      - /etc/kubernetes/cilium/values.yaml
+      - --reset-values
       - --kubeconfig
       - /etc/kubernetes/admin.conf
   when: inventory_hostname == groups['masters'][0]
-
-
-
-
-
-
-
-#- name: Install/Upgrade Cilium via Helm (kube-proxy replacement strict)
-#  command: >
-#    helm upgrade --install cilium
-#    /root/cilium-{{ cilium_version }}.tgz
-#    --namespace {{ cilium_namespace }}
-#    --create-namespace
-#    --kubeconfig /etc/kubernetes/admin.conf
-#    --set kubeProxyReplacement=true
-#    --set routingMode=tunnel
-#    --set tunnelProtocol=vxlan
-#    --set ipam.mode=kubernetes
-#    --set enableNodePort=false
-#    --set enableHostReachableServices=true
-#    --set serviceNoBackendResponse=drop
-#    --set autoDirectNodeRoutes=true
-#    --set bpf.lbAcceleration=enabled
-#    --set bpf.lbSock=true
-#    --set ipv6.enabled=false
-#    --set enableHubble=true
-#    --set hubble.relay.enabled=true
-#    --set hubble.ui.enabled=true
-#    --set k8sServiceHost={{ k8s_service_host }}
-#    --set k8sServicePort={{ k8s_service_port }}
-#  when: inventory_hostname == groups['masters'][0]

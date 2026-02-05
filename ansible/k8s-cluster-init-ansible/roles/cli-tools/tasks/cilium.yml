@@ -1,41 +1,61 @@
-- name: Check if cilium cli already installed
-  command: cilium version
+---
+- name: Check if cilium CLI already installed
+  ansible.builtin.command: cilium version
   register: cilium_check
-  ignore_errors: true
+  failed_when: false
   changed_when: false
+  when: inventory_hostname == groups['masters'][0]
 
-- name: Remove old /tmp/cilium if it's a file (cleanup)
-  file:
+- name: Remove old /tmp/cilium if exists
+  ansible.builtin.file:
     path: /tmp/cilium
     state: absent
-  when: cilium_check.rc != 0
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - cilium_check.rc != 0
 
-- name: Create temp directory for cilium cli
-  file:
+- name: Create temp directory for cilium CLI
+  ansible.builtin.file:
     path: /tmp/cilium
     state: directory
     mode: "0755"
-  when: cilium_check.rc != 0
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - cilium_check.rc != 0
 
 - name: Copy Cilium CLI archive to node
-  copy:
+  ansible.builtin.copy:
     src: cilium-linux-amd64.tar.gz
     dest: /tmp/cilium/cilium-linux-amd64.tar.gz
     mode: "0644"
-  when: cilium_check.rc != 0
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - cilium_check.rc != 0
 
 - name: Extract Cilium CLI
-  unarchive:
+  ansible.builtin.unarchive:
     src: /tmp/cilium/cilium-linux-amd64.tar.gz
     dest: /tmp/cilium
-    remote_src: yes
-  when: cilium_check.rc != 0
+    remote_src: true
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - cilium_check.rc != 0
+
+- name: Ensure /usr/local/bin exists
+  ansible.builtin.file:
+    path: /usr/local/bin
+    state: directory
+    mode: "0755"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - cilium_check.rc != 0
 
 - name: Install Cilium CLI binary
-  copy:
+  ansible.builtin.copy:
     src: /tmp/cilium/cilium
     dest: /usr/local/bin/cilium
     mode: "0755"
-    remote_src: yes
-  when: cilium_check.rc != 0
-
+    remote_src: true
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - cilium_check.rc != 0
