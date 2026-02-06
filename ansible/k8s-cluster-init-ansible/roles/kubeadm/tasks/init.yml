@@ -33,15 +33,6 @@
     - inventory_hostname == groups['masters'][0]
     - not adminconf.stat.exists
 
-- name: Re-check admin.conf after init
-  ansible.builtin.stat:
-    path: /etc/kubernetes/admin.conf
-  register: adminconf_after
-  when:
-    - inventory_hostname == groups['masters'][0]
-    - kubeadm_init is defined
-    - kubeadm_init.changed
-
 - name: Ensure /root/.kube exists
   ansible.builtin.file:
     path: /root/.kube
@@ -51,7 +42,7 @@
     mode: "0700"
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
 
 - name: Install admin kubeconfig for root
   ansible.builtin.copy:
@@ -63,30 +54,30 @@
     mode: "0600"
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
 
-- name: Ensure ~/.kube exists for ansible user
+- name: Ensure .kube dir exists for ubuntu user
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.kube"
+    path: /home/ubuntu/.kube
     state: directory
-    owner: "{{ ansible_user_uid }}"
-    group: "{{ ansible_user_gid }}"
+    owner: ubuntu
+    group: ubuntu
     mode: "0700"
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
 
-- name: Install admin kubeconfig for ansible user
+- name: Install admin kubeconfig for ubuntu user
   ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
-    dest: "{{ ansible_env.HOME }}/.kube/config"
+    dest: /home/ubuntu/.kube/config
     remote_src: true
-    owner: "{{ ansible_user_uid }}"
-    group: "{{ ansible_user_gid }}"
+    owner: ubuntu
+    group: ubuntu
     mode: "0600"
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
 
 - name: Switch kube-vip kubeconfig to admin.conf
   ansible.builtin.replace:
@@ -104,7 +95,7 @@
   changed_when: false
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
 
 - name: Get join command
   ansible.builtin.command: kubeadm token create --print-join-command
@@ -112,7 +103,7 @@
   changed_when: false
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
 
 - name: Assert join command uses VIP endpoint
   ansible.builtin.assert:
@@ -125,7 +116,7 @@
       {{ join_cmd.stdout }}
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
 
 - name: Save cluster join info globally
   ansible.builtin.add_host:
@@ -134,4 +125,4 @@
     certificate_key: "{{ upload_certs.stdout_lines | last | mandatory }}"
   when:
     - inventory_hostname == groups['masters'][0]
-    - adminconf_after.stat.exists
+    - adminconf.stat.exists
