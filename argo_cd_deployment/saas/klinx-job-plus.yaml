@@ -56,14 +56,6 @@ spec:
       labels:
         app: klinx-job-admin
     spec:
-      volumes:
-        - name: host-time
-          hostPath:
-            path: /etc/localtime
-        - name: log
-          hostPath:
-            path: /data/saas-log
-            type: DirectoryOrCreate
       initContainers:
         - name: init-nacos
           image: busybox:1.36
@@ -83,15 +75,6 @@ spec:
               containerPort: 7767
             - name: tcp-7768
               containerPort: 7768
-          env:
-            - name: JAVA_OPTS
-              value: "-XX:MaxRAMPercentage=90.0"
-          volumeMounts:
-            - name: host-time
-              mountPath: /etc/localtime
-              readOnly: true
-            - name: log
-              mountPath: /Users/texpro/data/projects/logs
           livenessProbe:
             httpGet:
               path: /xxl-job-admin/actuator/health/liveness
@@ -103,8 +86,8 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 256Mi
+              memory: 500Mi
             limits:
               cpu: 1000m
-              memory: 3072Mi
+              memory: 1800Mi
   podManagementPolicy: OrderedReady

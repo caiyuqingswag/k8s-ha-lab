@@ -18,6 +18,9 @@ spec:
       containers:
         - name: klinx-iexpert-server
           image: node5:443/itex-biz/klinx-iexpert-server:private_jingyuan_qa_sit
+          envFrom:
+            - configMapRef:
+                name: saas-config
           ports:
             - containerPort: 7070
               protocol: TCP
@@ -49,16 +52,15 @@ spec:
               port: 8717
               scheme: HTTP
             timeoutSeconds: 1
-            periodSeconds: 6
             successThreshold: 1
+            initialDelaySeconds: 6
             failureThreshold: 30
+            periodSeconds: 10
           env:
             - name: DISCOVERY_PORT
               value: "8717"               # 提供给 ${DISCOVERY_PORT}
             - name: SERVER_PORT
               value: "8717"               # 如果配置里用了 ${server.port}
-            - name: JAVA_OPTS
-              value: '-XX:MaxRAMPercentage=90.0'
           resources:
             limits:
               cpu: '1'

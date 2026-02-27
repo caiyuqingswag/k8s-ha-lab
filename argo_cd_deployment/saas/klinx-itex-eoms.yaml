@@ -17,11 +17,11 @@ spec:
         - key: "node.kubernetes.io/not-ready"
           operator: "Exists"
           effect: "NoExecute"
-          tolerationSeconds: 20
+          tolerationSeconds: 60
         - key: "node.kubernetes.io/unreachable"
           operator: "Exists"
           effect: "NoExecute"
-          tolerationSeconds: 20
+          tolerationSeconds: 60
       terminationGracePeriodSeconds: 5
       affinity:
         podAntiAffinity:
@@ -78,8 +78,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: "25%"
-      maxSurge: "25%"
+      maxUnavailable: 0
+      maxSurge: 1
   revisionHistoryLimit: 10
   progressDeadlineSeconds: 600
 ---

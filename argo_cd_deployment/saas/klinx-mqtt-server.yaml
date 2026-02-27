@@ -17,21 +17,12 @@ spec:
         - key: "node.kubernetes.io/not-ready"
           operator: "Exists"
           effect: "NoExecute"
-          tolerationSeconds: 20
+          tolerationSeconds: 60
         - key: "node.kubernetes.io/unreachable"
           operator: "Exists"
           effect: "NoExecute"
-          tolerationSeconds: 20
+          tolerationSeconds: 60
       terminationGracePeriodSeconds: 5
-      volumes:
-        - name: host-time
-          hostPath:
-            path: /etc/localtime
-            type: ''
-        - name: log
-          hostPath:
-            path: /data/saas-log
-            type: DirectoryOrCreate
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -47,12 +38,6 @@ spec:
       containers:
         - name: klinx-mqtt-broker
           image: node5:443/itex-biz/klinx-mqtt-broker:private_newha
-          volumeMounts:
-            - name: host-time
-              readOnly: true
-              mountPath: /etc/localtime
-            - name: log
-              mountPath: /Users/texpro/data/projects/logs
           envFrom:
             - configMapRef:
                 name: saas-config
@@ -86,11 +71,11 @@ spec:
               path: /actuator/health/readiness
               port: 9088
               scheme: HTTP
-            initialDelaySeconds: 6
             timeoutSeconds: 1
-            periodSeconds: 10
             successThreshold: 1
-            failureThreshold: 6
+            initialDelaySeconds: 6
+            failureThreshold: 30
+            periodSeconds: 10
           ports:
             - name: tcp-18255
               containerPort: 18255
@@ -108,8 +93,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: "25%"
-      maxSurge: "25%"
+      maxUnavailable: 0
+      maxSurge: 1
   revisionHistoryLimit: 10
   progressDeadlineSeconds: 600
 
