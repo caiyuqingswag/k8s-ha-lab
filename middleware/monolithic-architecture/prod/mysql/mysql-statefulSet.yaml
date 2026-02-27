@@ -96,9 +96,13 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 6
       volumes:
+        - name: mysqld-run
+          emptyDir: { }
         - name: mysql-data
           persistentVolumeClaim:
             claimName: pvc-mysql-prod
         - name: mysql-config
           configMap:
             name: mysql-config
+        - name: tmp
+          emptyDir: {}
