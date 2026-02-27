@@ -15,8 +15,11 @@ spec:
         app: minio
     spec:
       terminationGracePeriodSeconds: 60
+      automountServiceAccountToken: false
       securityContext:
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: minio
           image: minio/minio:RELEASE.2025-04-08T15-41-24Z
@@ -26,6 +29,15 @@ spec:
             - /data
             - "--console-address"
             - ":9001"
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
           env:
             - name: MINIO_ROOT_USER
               valueFrom:

@@ -15,19 +15,33 @@ spec:
         app: influxdb
     spec:
       terminationGracePeriodSeconds: 60
+      automountServiceAccountToken: false
       securityContext:
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: influxdb
           image: influxdb:1.8
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            # ✅ baseline 下“可选加固”：如果确认镜像能非 root 跑再打开
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            # ✅ 也可尝试开启（若报 /tmp 或其他写入问题，再加 /tmp emptyDir）
+            readOnlyRootFilesystem: true
           ports:
             - name: http
               containerPort: 8086
           env:
             - name: TZ
               value: Asia/Shanghai
-            # 初始化：创建 admin + 数据库（首次启动数据目录为空时生效）
             - name: INFLUXDB_HTTP_AUTH_ENABLED
               value: "true"
             - name: INFLUXDB_ADMIN_ENABLED

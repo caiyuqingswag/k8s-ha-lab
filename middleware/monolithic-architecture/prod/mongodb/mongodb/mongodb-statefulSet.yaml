@@ -15,12 +15,27 @@ spec:
         app: mongodb
     spec:
       terminationGracePeriodSeconds: 30
+      automountServiceAccountToken: false
       securityContext:
         fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mongodb
           image: mongo:5.0.3
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            # ✅ baseline 下可选：确认数据卷权限 OK 后再打开
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            # ✅ 也可尝试（如果报 /tmp 写入问题，再加 /tmp emptyDir）
+            readOnlyRootFilesystem: true
           args:
             - "--bind_ip_all"
             - "--auth"
@@ -52,6 +67,8 @@ spec:
           volumeMounts:
             - name: mongodb-data
               mountPath: /data/db
+            - name: tmp
+              mountPath: /tmp
           readinessProbe:
             exec:
               command:
@@ -73,6 +90,8 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 6
       volumes:
+        - name: tmp
+          emptyDir: { }
         - name: mongodb-data
           persistentVolumeClaim:
             claimName: pvc-mongodb-prod
