@@ -13,41 +13,44 @@ spec:
       labels:
         app: klinx-imes-server
     spec:
-      tolerations:
-        - key: "node.kubernetes.io/not-ready"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 60
-        - key: "node.kubernetes.io/unreachable"
-          operator: "Exists"
-          effect: "NoExecute"
-          tolerationSeconds: 60
-      terminationGracePeriodSeconds: 5
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: app
-                      operator: In
-                      values:
-                        - klinx-imes-servers
-                topologyKey: kubernetes.io/hostname
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: klinx-imes-server
           imagePullPolicy: Always
           image: node5:443/itex-biz/klinx-imes-server:private_jingyuan_qa_sit
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           envFrom:
             - configMapRef:
                 name: saas-config
           resources:
             requests:
-              cpu: 100m
-              memory: 512Mi
+              cpu: 500m
+              memory: 1Gi
             limits:
-              memory: 6144Mi
+              cpu: "1"
+              memory: 2800Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: root-logs
+              mountPath: /root/logs
+            - name: app-logs
+              mountPath: /Users/texpro/data/projects/logs/klinx-imes-server
+            - name: heapdump
+              mountPath: /heapdump
           ports:
             - name: tcp-8736
               containerPort: 8736
@@ -58,9 +61,7 @@ spec:
               port: 8736
               scheme: HTTP
             initialDelaySeconds: 10
-            timeoutSeconds: 1
             periodSeconds: 6
-            successThreshold: 1
             failureThreshold: 10
           readinessProbe:
             httpGet:
@@ -68,28 +69,31 @@ spec:
               port: 8736
               scheme: HTTP
             initialDelaySeconds: 6
-            timeoutSeconds: 1
             periodSeconds: 3
-            successThreshold: 1
             failureThreshold: 3
           startupProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8736
               scheme: HTTP
-            timeoutSeconds: 1
-            successThreshold: 1
             initialDelaySeconds: 6
             failureThreshold: 30
             periodSeconds: 10
-      dnsPolicy: ClusterFirst
+      volumes:
+        - name: tmp
+          emptyDir: { }
+        - name: root-logs
+          emptyDir: { }
+        - name: app-logs
+          emptyDir: { }
+        - name: heapdump
+          persistentVolumeClaim:
+            claimName: heapdump-pvc      
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
-  revisionHistoryLimit: 10
-  progressDeadlineSeconds: 600
 ---
 apiVersion: v1
 kind: Service

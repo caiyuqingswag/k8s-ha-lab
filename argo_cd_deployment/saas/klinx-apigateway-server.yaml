@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: klinx-iwms-server
+  name: klinx-apigateway-server
   namespace: saas
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: klinx-iwms-server
+      app: klinx-apigateway-server
   template:
     metadata:
       labels:
-        app: klinx-iwms-server
+        app: klinx-apigateway-server
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -22,9 +22,9 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: klinx-iwms-server
+        - name: klinx-apigateway-server
           imagePullPolicy: Always
-          image: node5:443/itex-biz/klinx-iwms-server:private_jingyuan_qa_sit
+          image: node5:443/itex-biz/klinx-apigateway-server:private_jingyuan_qa_sit
           securityContext:
             allowPrivilegeEscalation: false
             privileged: false
@@ -37,33 +37,47 @@ spec:
                 name: saas-config
           resources:
             requests:
-              cpu: 300m
-              memory: 800Mi
+              cpu: 200m
+              memory: 500Mi
             limits:
-              cpu: "1"
-              memory: 2Gi
+              cpu: 500m
+              memory: 1Gi
           volumeMounts:
             - name: tmp
               mountPath: /tmp
             - name: root-logs
               mountPath: /root/logs
             - name: app-logs
-              mountPath: /Users/texpro/data/projects/logs/klinx-iwms-server
+              mountPath: /Users/texpro/data/projects/logs/klinx-apigateway-server
             - name: heapdump
               mountPath: /heapdump
           ports:
-            - name: tcp-8706
-              containerPort: 8706
+            - name: tcp-9012
+              containerPort: 9012
               protocol: TCP
           livenessProbe:
-            tcpSocket:
-              port: 8706
-            initialDelaySeconds: 60
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9012
+              scheme: HTTP
+            initialDelaySeconds: 10
             periodSeconds: 6
-            failureThreshold: 20
+            failureThreshold: 10
           readinessProbe:
-            tcpSocket:
-              port: 8706
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9012
+              scheme: HTTP
+            initialDelaySeconds: 6
+            timeoutSeconds: 2
+            periodSeconds: 2
+            successThreshold: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9012
+              scheme: HTTP
             initialDelaySeconds: 6
             failureThreshold: 30
             periodSeconds: 10
@@ -76,7 +90,7 @@ spec:
           emptyDir: { }
         - name: heapdump
           persistentVolumeClaim:
-            claimName: heapdump-pvc      
+            claimName: heapdump-pvc
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -86,14 +100,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: klinx-iwms-server
+  name: klinx-apigateway-server
   namespace: saas
 spec:
   type: ClusterIP
   selector:
-    app: klinx-iwms-server
+    app: klinx-apigateway-server
   ports:
-    - name: tcp-8706
-      port: 8706
+    - name: tcp-9012
+      port: 9012
       protocol: TCP
-      targetPort: 8706
+      targetPort: 9012
