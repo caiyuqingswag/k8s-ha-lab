@@ -1,26 +1,40 @@
-# 是否启用更新
+---
+# 是否启用系统更新
 system_update_enabled: true
 
-# 是否执行重启（推荐 true）
+# 是否允许执行重启
 system_update_reboot: true
 
-# 是否仅在系统判断需要时才重启（Ubuntu 用 /var/run/reboot-required）
+# true:
+#   Ubuntu 只有出现 /var/run/reboot-required 才重启
+# false:
+#   只要 apt upgrade 有变更就重启
 system_update_reboot_only_if_needed: true
 
-# 控制机（ansible 控制端）主机名：用于跳过即时 reboot，最后再延迟重启
+# 控制节点主机名。
+# 这里的“控制节点”是你希望最后重启或默认跳过重启的那台机器。
+# 你当前 inventory 可以用 master1。
 system_update_control_host: "master1"
 
-# 是否允许控制节点也重启（默认 false，避免把 ansible 控制端干掉）
+# 是否允许控制节点也重启
+# 默认 false，避免把当前 ansible 执行链路干掉
 system_update_reboot_control_node: false
 
-# 控制机延迟重启秒数（确保 playbook 能结束并写 summary）
+# 控制节点延迟重启秒数
 system_update_control_reboot_delay_seconds: 60
 
-# apt 锁等待时间，避免并发更新导致失败（秒）
+# apt 锁等待时间
 system_update_pkg_lock_timeout: 120
 
-# apt 行为
-system_update_apt_upgrade: "dist"     # safe | full-upgrade(dist)；ansible 用 dist
+# apt 升级模式
+# 可选：
+#   safe
+#   full
+#   dist
+# Ubuntu 服务器批量升级一般用 dist
+system_update_apt_upgrade: "dist"
+
+# apt 清理
 system_update_apt_autoremove: true
 system_update_apt_autoclean: true
 
@@ -30,5 +44,5 @@ system_update_connect_timeout: 5
 system_update_pre_delay: 3
 system_update_post_delay: 10
 
-# 报告输出目录（在控制机本地）
+# 报告输出目录，位于 Ansible 控制机本地
 system_update_report_dir: "./upgrade-reports"
