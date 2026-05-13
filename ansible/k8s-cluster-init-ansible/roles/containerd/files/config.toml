@@ -57,7 +57,7 @@ config_path = '/etc/containerd/certs.d'
 key_model = 'node'
 
 [plugins.'io.containerd.cri.v1.runtime']
-enable_selinux = true
+enable_selinux = false
 selinux_category_range = 1024
 max_container_log_line_size = 16384
 disable_apparmor = false
