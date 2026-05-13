@@ -5,9 +5,11 @@ metadata:
   namespace: kube-system
   labels:
     app.kubernetes.io/name: kube-vip
+    app.kubernetes.io/component: control-plane-vip
 spec:
   hostNetwork: true
   restartPolicy: Always
+  priorityClassName: system-node-critical
   containers:
     - name: kube-vip
       image: "{{ kube_vip_image }}:{{ kube_vip_version }}"
@@ -24,23 +26,15 @@ spec:
             fieldRef:
               fieldPath: spec.nodeName
         - name: vip_interface
-          value: "{{ kube_vip_interface }}"
+          value: "{{ kube_vip_effective_interface }}"
         - name: vip_subnet
           value: "{{ kube_vip_subnet | string }}"
         - name: address
           value: "{{ kube_vip_address }}"
-        - name: dns_mode
-          value: first
-        - name: dhcp_mode
-          value: ipv4
         - name: cp_enable
           value: "{{ 'true' if kube_vip_cp_enable else 'false' }}"
         - name: cp_namespace
           value: kube-system
-        - name: svc_enable
-          value: "{{ 'true' if kube_vip_svc_enable else 'false' }}"
-        - name: svc_leasename
-          value: "{{ kube_vip_lease_name_svc }}"
         - name: vip_leaderelection
           value: "{{ 'true' if kube_vip_leader_election else 'false' }}"
         - name: vip_leasename
@@ -51,12 +45,11 @@ spec:
           value: "{{ kube_vip_renew_deadline | string }}"
         - name: vip_retryperiod
           value: "{{ kube_vip_retry_period | string }}"
+        # 这个 role 只做 control-plane VIP
+        - name: svc_enable
+          value: "{{ 'true' if kube_vip_svc_enable else 'false' }}"
         - name: lb_enable
           value: "{{ 'true' if kube_vip_lb_enable else 'false' }}"
-        - name: lb_port
-          value: "{{ kube_vip_port | string }}"
-        - name: lb_fwdmethod
-          value: "{{ kube_vip_lb_fwdmethod }}"
         - name: prometheus_server
           value: "{{ kube_vip_metrics_bind }}"
       securityContext:
@@ -77,4 +70,5 @@ spec:
   volumes:
     - name: kubeconfig
       hostPath:
-        path: /etc/kubernetes/super-admin.conf
+        path: "{{ kube_vip_kubeconfig_path }}"
+        type: FileOrCreate

@@ -1,0 +1,26 @@
+---
+# =========================
+# Switch kube-vip from super-admin.conf to admin.conf
+# Run this after kubeadm init on first master
+# =========================
+
+- name: Check kube-vip manifest exists
+  ansible.builtin.stat:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+  register: kube_vip_manifest_stat
+
+- name: Switch kube-vip kubeconfig from super-admin.conf to admin.conf
+  ansible.builtin.replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: 'path: /etc/kubernetes/super-admin\.conf'
+    replace: 'path: /etc/kubernetes/admin.conf'
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))
+
+- name: Wait for kubelet to reload kube-vip static pod
+  ansible.builtin.pause:
+    seconds: 5
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))

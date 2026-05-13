@@ -54,7 +54,8 @@
 
 # =========================
 # 5. Deploy kube-vip static pod manifest on first master before kubeadm init
-# 你的 inventory 里有 [master1-vip]，建议用它
+# master1-vip 使用 /etc/kubernetes/super-admin.conf
+# kubeadm init 完成后会切回 /etc/kubernetes/admin.conf
 # =========================
 
 - name: Deploy kube-vip for first control-plane node
@@ -64,6 +65,7 @@
     - kube-vip
   tags:
     - kubevip
+    - init
 
 # =========================
 # 6. Kubeadm init on first master
@@ -82,7 +84,24 @@
     - init
 
 # =========================
-# 7. Install CLI tools on first master
+# 7. Switch kube-vip on first master from super-admin.conf to admin.conf
+# 降低长期运行权限
+# =========================
+
+- name: Switch kube-vip on first master to admin.conf
+  hosts: master1-vip
+  become: true
+  tasks:
+    - name: Switch kube-vip kubeconfig to admin.conf
+      ansible.builtin.import_role:
+        name: kube-vip
+        tasks_from: use-admin-conf.yml
+  tags:
+    - kubevip
+    - init
+
+# =========================
+# 8. Install CLI tools on first master
 # kubectl completion / helm / cilium cli 等
 # =========================
 
@@ -95,7 +114,7 @@
     - cli
 
 # =========================
-# 8. Deploy Cilium CNI
+# 9. Deploy Cilium CNI
 # 建议在 join 其他节点前先安装 CNI
 # =========================
 
@@ -110,9 +129,8 @@
     - cilium
 
 # =========================
-# 9. Deploy kube-vip manifest on other masters before/around join
-# 如果你的 kube-vip role 是生成静态 Pod manifest，可以在其他 master join 前准备
-# 如果该 role 依赖 /etc/kubernetes/manifests 已存在，放到 join_masters 后面
+# 10. Prepare kube-vip static pod manifest on other masters
+# othermaster-vip 使用 /etc/kubernetes/admin.conf
 # =========================
 
 - name: Prepare kube-vip for other control-plane nodes
@@ -122,9 +140,10 @@
     - kube-vip
   tags:
     - kubevip
+    - join_masters
 
 # =========================
-# 10. Join other masters
+# 11. Join other masters
 # =========================
 
 - name: Join other masters
@@ -140,7 +159,7 @@
     - join_masters
 
 # =========================
-# 11. Join workers
+# 12. Join workers
 # =========================
 
 - name: Join workers
@@ -156,23 +175,23 @@
     - join_workers
 
 # =========================
-# 12. Deploy kube-vip LoadBalancer
+# 13. Deploy kube-vip LoadBalancer
 # Service type=LoadBalancer
-# 建议等集群节点加入后再部署
+# 你说先不管，这里先注释
 # =========================
 
-- name: Deploy kube-vip LoadBalancer
-  hosts: "{{ groups['masters'][0] }}"
-  become: true
-  tasks:
-    - name: Deploy kube-vip cloud provider / LoadBalancer
-      ansible.builtin.import_role:
-        name: kube-vip-loadbalance
-  tags:
-    - kubevip-lb
+# - name: Deploy kube-vip LoadBalancer
+#   hosts: "{{ groups['masters'][0] }}"
+#   become: true
+#   tasks:
+#     - name: Deploy kube-vip cloud provider / LoadBalancer
+#       ansible.builtin.import_role:
+#         name: kube-vip-loadbalance
+#   tags:
+#     - kubevip-lb
 
 # =========================
-# 13. Deploy NFS server
+# 14. Deploy NFS server
 # =========================
 
 - name: Deploy NFS server
@@ -184,7 +203,7 @@
     - nfs
 
 # =========================
-# 14. Init directories on NFS server
+# 15. Init directories on NFS server
 # =========================
 
 - name: Init directories on NFS server

@@ -1,32 +1,50 @@
+---
+# =========================
+# kube-vip static pod for Kubernetes control-plane VIP
+# =========================
+
+- name: Ensure kube-vip role only runs on masters
+  ansible.builtin.assert:
+    that:
+      - "'masters' in group_names"
+    fail_msg: "kube-vip role should only run on masters."
+
 - name: Ensure /etc/kubernetes/manifests exists
   ansible.builtin.file:
     path: /etc/kubernetes/manifests
     state: directory
     mode: "0755"
 
-- name: Pull kube-vip image via crictl
-  ansible.builtin.command: >
-    crictl pull {{ kube_vip_image }}:{{ kube_vip_version }}
-  when: inventory_hostname in groups['masters']
+- name: Detect kube-vip interface if not set
+  ansible.builtin.set_fact:
+    kube_vip_effective_interface: >-
+      {{
+        kube_vip_interface
+        if (kube_vip_interface | default('') | length > 0)
+        else ansible_default_ipv4.interface
+      }}
 
-- name: Render kube-vip manifest for primary master
+- name: Set kube-vip kubeconfig path for this node
+  ansible.builtin.set_fact:
+    kube_vip_kubeconfig_path: >-
+      {{
+        '/etc/kubernetes/super-admin.conf'
+        if inventory_hostname in (groups['master1-vip'] | default([]))
+        else '/etc/kubernetes/admin.conf'
+      }}
+
+- name: Pull kube-vip image via crictl
+  ansible.builtin.command: "crictl pull {{ kube_vip_image }}:{{ kube_vip_version }}"
+  changed_when: false
+
+- name: Render kube-vip static pod manifest
   ansible.builtin.template:
     src: kube-vip.yaml.j2
     dest: /etc/kubernetes/manifests/kube-vip.yaml
     mode: "0644"
-  when: inventory_hostname in groups['master1-vip']
 
-- name: Render kube-vip manifest for backup masters
-  ansible.builtin.template:
-    src: kube-vip-othermaster.yaml.j2
-    dest: /etc/kubernetes/manifests/kube-vip.yaml
-    mode: "0644"
-  when: inventory_hostname in groups['othermaster-vip']
-
-- name: Restart kubelet to pick up kube-vip static pod (optional)
+- name: Restart kubelet to pick up kube-vip static pod if requested
   ansible.builtin.systemd:
     name: kubelet
     state: restarted
-  when:
-    - kube_vip_restart_kubelet | default(false)
-    - inventory_hostname in groups['masters']
+  when: kube_vip_restart_kubelet | default(false)
