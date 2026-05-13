@@ -1,4 +1,4 @@
-k8s_version: "1.35.0"
+k8s_version: "1.36.1"
 image_repo: "registry.cn-hangzhou.aliyuncs.com/google_containers"
 #pause_image: "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9"
 
@@ -16,7 +16,7 @@ system_update_control_host: master1
 
 # kube-vip
 kube_vip_address: "kubevip-api"
-kube_vip_interface: "ens3"
+kube_vip_interface: "eth0"
 kube_vip_port: 6443
 
 # kubeadm HA endpoint

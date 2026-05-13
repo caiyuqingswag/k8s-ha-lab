@@ -88,6 +88,7 @@
     mode: "0755"
   loop:
     - /etc/containerd
+    - /etc/containerd/conf.d
     - /etc/containerd/certs.d
 
 # =========================
@@ -124,6 +125,27 @@
     content: |
       server = "https://docker.io"
       [host."https://docker.m.daocloud.io"]
+        capabilities = ["pull", "resolve"]
+
+      [host."https://ccr.ccs.tencentyun.com"]
+        capabilities = ["pull", "resolve"]
+
+      [host."https://docker.1ms.run"]
+        capabilities = ["pull", "resolve"]
+
+      [host."https://dhub.kubesre.xyz"]
+        capabilities = ["pull", "resolve"]
+
+      [host."https://docker.kejilion.pro"]
+        capabilities = ["pull", "resolve"]
+
+      [host."https://docker.xuanyuan.me"]
+        capabilities = ["pull", "resolve"]
+
+      [host."https://docker.hlmirror.com"]
+        capabilities = ["pull", "resolve"]
+
+      [host."https://docker.melikeme.cn"]
         capabilities = ["pull", "resolve"]
   notify: Restart containerd
 

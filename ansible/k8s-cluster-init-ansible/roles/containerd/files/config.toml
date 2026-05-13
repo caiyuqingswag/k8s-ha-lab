@@ -39,7 +39,7 @@ grpc_histogram = false
 [plugins.'io.containerd.cri.v1.images']
 snapshotter = 'overlayfs'
 disable_snapshot_annotations = true
-discard_unpacked_layers = true
+discard_unpacked_layers = false
 max_concurrent_downloads = 3
 concurrent_layer_fetch_buffer = 0
 image_pull_progress_timeout = '5m0s'
@@ -51,7 +51,7 @@ use_local_image_pull = false
 sandbox = 'registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.10.1'
 
 [plugins.'io.containerd.cri.v1.images'.registry]
-config_path = '/etc/containerd/certs.d:/etc/docker/certs.d'
+config_path = '/etc/containerd/certs.d'
 
 [plugins.'io.containerd.cri.v1.images'.image_decryption]
 key_model = 'node'

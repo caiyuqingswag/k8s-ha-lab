@@ -1,21 +1,30 @@
 ---
 # =========================
 # Basic identity & hosts
+# Ubuntu 24.04 / K8s / Cilium / Cloud VM
 # =========================
 
 - name: Set hostname
   ansible.builtin.hostname:
     name: "{{ inventory_hostname }}"
 
+- name: Prevent cloud-init from managing /etc/hosts
+  ansible.builtin.copy:
+    dest: /etc/cloud/cloud.cfg.d/99-disable-manage-etc-hosts.cfg
+    content: |
+      manage_etc_hosts: false
+    mode: "0644"
+  when: ansible_facts['distribution'] == "Ubuntu"
+
 - name: Build hosts block
-  set_fact:
+  ansible.builtin.set_fact:
     hosts_block: |
       {{ kubevip_api_ip }} {{ kubevip_api_name }}
-      {% for h in groups['masters'] %}
-      {{ hostvars[h].ansible_host }} {{ h }}
+      {% for h in groups['masters'] | default([]) %}
+      {{ hostvars[h].ansible_host | default(h) }} {{ h }}
       {% endfor %}
-      {% for h in groups['nodes'] %}
-      {{ hostvars[h].ansible_host }} {{ h }}
+      {% for h in groups['nodes'] | default([]) %}
+      {{ hostvars[h].ansible_host | default(h) }} {{ h }}
       {% endfor %}
 
 - name: Update /etc/hosts safely
@@ -23,9 +32,11 @@
     path: /etc/hosts
     block: "{{ hosts_block }}"
     marker: "# {mark} ANSIBLE K8S HOSTS"
+    create: true
+    mode: "0644"
 
 # =========================
-# Base packages (Ubuntu)
+# Base packages
 # =========================
 
 - name: Update apt cache
@@ -33,7 +44,7 @@
     update_cache: true
     cache_valid_time: 3600
 
-- name: Install base packages (Ubuntu 24.04)
+- name: Install base packages for Kubernetes node
   ansible.builtin.apt:
     name:
       - lvm2
@@ -44,7 +55,6 @@
       - vim
       - bash-completion
       - chrony
-      - nftables
       - tar
       - iproute2
       - iputils-ping
@@ -52,36 +62,66 @@
       - socat
       - nfs-common
       - ca-certificates
+      - gnupg
+      - gpg
+      - apt-transport-https
+      - software-properties-common
+      - ethtool
+      - jq
+      - rsync
+      - tcpdump
+      - htop
+      - iotop
+      - sysstat
+      - iptables
+      - arptables
+      - ebtables
+      - nftables
     state: present
 
 # =========================
-# Swap (required by Kubernetes)
+# Swap
+# Kubernetes nodes should disable swap
 # =========================
+
+- name: Check swap status
+  ansible.builtin.command: swapon --show
+  register: swap_status
+  changed_when: false
+  failed_when: false
 
 - name: Disable swap runtime
   ansible.builtin.command: swapoff -a
-  failed_when: false
-  changed_when: false
+  when: swap_status.stdout | length > 0
 
 - name: Comment swap in fstab
   ansible.builtin.replace:
     path: /etc/fstab
     regexp: '^(\s*[^#].*\s+swap\s+.*)$'
     replace: '#\1'
+    backup: true
 
 # =========================
-# Firewall (Ubuntu uses UFW)
+# Firewall
+# Cloud security group should be primary firewall at first
 # =========================
 
-- name: Disable ufw (you may enable later)
+- name: Disable ufw initially
   ansible.builtin.systemd:
     name: ufw
     enabled: false
     state: stopped
   failed_when: false
 
+- name: Disable nftables service initially
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: false
+    state: stopped
+  failed_when: false
+
 # =========================
-# Kernel modules for Kubernetes
+# Kernel modules for Kubernetes/containerd/Cilium
 # =========================
 
 - name: Configure kernel modules
@@ -93,43 +133,78 @@
       nf_conntrack
     mode: "0644"
 
-- name: Load kernel modules now
-  ansible.builtin.command: modprobe {{ item }}
-  loop:
-    - overlay
-    - br_netfilter
-    - nf_conntrack
-  failed_when: false
+- name: Load overlay module
+  ansible.builtin.command: modprobe overlay
   changed_when: false
+  failed_when: false
+
+- name: Load br_netfilter module
+  ansible.builtin.command: modprobe br_netfilter
+  changed_when: false
+  failed_when: false
+
+- name: Load nf_conntrack module
+  ansible.builtin.command: modprobe nf_conntrack
+  changed_when: false
+  failed_when: false
 
 # =========================
-# Sysctl for Kubernetes
+# Sysctl for Kubernetes / Cilium / Cloud VM
 # =========================
 
 - name: Configure sysctl for Kubernetes
   ansible.builtin.copy:
     dest: /etc/sysctl.d/99-kubernetes.conf
     content: |
+      # Kubernetes networking
       net.ipv4.ip_forward = 1
       net.bridge.bridge-nf-call-iptables = 1
       net.bridge.bridge-nf-call-ip6tables = 1
 
-      net.netfilter.nf_conntrack_max = 262144
+      # Cloud VM / overlay network / Cilium friendly settings
+      net.ipv4.conf.all.rp_filter = 0
+      net.ipv4.conf.default.rp_filter = 0
+
+      # Conntrack and network queue
+      net.netfilter.nf_conntrack_max = 524288
       net.core.somaxconn = 16384
       net.core.netdev_max_backlog = 16384
 
+      # Inotify for containers / controllers
       fs.inotify.max_user_watches = 1048576
       fs.inotify.max_user_instances = 8192
 
+      # Elasticsearch / OpenSearch / mmap heavy workloads
       vm.max_map_count = 262144
     mode: "0644"
+  notify: Apply sysctl
 
-- name: Apply sysctl
+- name: Apply sysctl immediately on first run
   ansible.builtin.command: sysctl --system
   changed_when: false
 
 # =========================
-# Limits (ulimit & systemd)
+# Cilium eBPF filesystem
+# Requires ansible.posix collection
+# ansible-galaxy collection install ansible.posix
+# =========================
+
+- name: Ensure bpf filesystem mount point exists
+  ansible.builtin.file:
+    path: /sys/fs/bpf
+    state: directory
+    mode: "0755"
+
+- name: Mount bpffs
+  ansible.posix.mount:
+    path: /sys/fs/bpf
+    src: bpffs
+    fstype: bpf
+    opts: defaults
+    state: mounted
+
+# =========================
+# Limits
 # =========================
 
 - name: Configure ulimit
@@ -155,31 +230,102 @@
       [Manager]
       DefaultLimitNOFILE=262144
     mode: "0644"
+  notify: Reexec systemd
 
-- name: Reload systemd manager
-  ansible.builtin.command: systemctl daemon-reexec
+# =========================
+# Time sync
+# =========================
+
+- name: Disable systemd-timesyncd when using chrony
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: false
+    state: stopped
   failed_when: false
-  changed_when: false
-
-# =========================
-# Time sync (chrony)
-# =========================
 
 - name: Configure chrony
   ansible.builtin.copy:
     dest: /etc/chrony/chrony.conf
     content: |
+      # Alibaba Cloud NTP
       server ntp1.aliyun.com iburst
       server ntp2.aliyun.com iburst
+
+      # Tencent Cloud NTP
       server ntp1.tencent.com iburst
       server ntp2.tencent.com iburst
+
+      # Public fallback
+      server time.cloudflare.com iburst
+      server time.google.com iburst
+
       driftfile /var/lib/chrony/drift
       makestep 1.0 3
       rtcsync
+      logdir /var/log/chrony
     mode: "0644"
+  notify: Restart chrony
 
 - name: Enable chrony
   ansible.builtin.systemd:
     name: chrony
     enabled: true
     state: started
+
+# =========================
+# Journald limits
+# Prevent system disk from being filled by logs
+# =========================
+
+- name: Ensure journald config directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Configure journald limits
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/90-k8s.conf
+    content: |
+      [Journal]
+      SystemMaxUse=2G
+      RuntimeMaxUse=512M
+      MaxRetentionSec=7day
+      Compress=yes
+    mode: "0644"
+  notify: Restart journald
+
+# =========================
+# Automatic upgrades
+# Production K8s nodes should not reboot/upgrade unexpectedly
+# =========================
+
+- name: Disable unattended-upgrades service
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Disable apt periodic unattended upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "0";
+      APT::Periodic::Unattended-Upgrade "0";
+    mode: "0644"
+
+# =========================
+# Bash completion
+# =========================
+
+- name: Ensure bash completion is enabled for root
+  ansible.builtin.blockinfile:
+    path: /root/.bashrc
+    marker: "# {mark} ANSIBLE BASH COMPLETION"
+    block: |
+      if [ -f /etc/bash_completion ]; then
+        . /etc/bash_completion
+      fi
+    create: true
+    mode: "0644"
