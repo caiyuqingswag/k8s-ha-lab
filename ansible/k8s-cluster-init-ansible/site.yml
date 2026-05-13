@@ -1,93 +1,92 @@
-- name: System update and kernel upgrade (parallel)
+---
+# =========================
+# 1. System update and kernel upgrade
+# 初始环境可以先统一更新系统
+# 注意：不要用 strategy: free，否则 summary 可能不完整
+# =========================
+
+- name: System update and kernel upgrade
   hosts: all
   become: true
-  strategy: free
   roles:
     - system_update
   tags:
     - update
 
-- name: Generate summary report on control node (txt table)
-  hosts: localhost
-  gather_facts: false
-  vars:
-    system_update_report_dir: "{{ hostvars[groups['masters'][0]].system_update_report_dir | default('./upgrade-reports') }}"
-  tasks:
-    - name: Ensure report directory exists
-      file:
-        path: "{{ system_update_report_dir }}"
-        state: directory
-        mode: "0755"
+# =========================
+# 2. Common OS init
+# Ubuntu 24.04 基础初始化：
+# hostname / hosts / sysctl / bpffs / timesyncd / limits / journald
+# =========================
 
-    - name: Write summary.txt
-      template:
-        src: roles/system_update/templates/summary.j2
-        dest: "{{ system_update_report_dir }}/summary.txt"
-        mode: "0644"
-  tags:
-    - update
-
-- name: Reboot control node last (delayed, so ansible can finish)
-  hosts: "{{ groups['masters'][0] }}"
-  become: true
-  gather_facts: false
-  tasks:
-    - name: Schedule delayed reboot on control node if needed
-      command: "systemd-run --on-active={{ system_update_control_reboot_delay_seconds | default(60) }}s /usr/sbin/reboot"
-      when:
-        - system_update_reboot | default(true)
-        - reboot_needed | default(false)
-  tags:
-    - update
-
-- name: Common OS init (all)
+- name: Common OS init
   hosts: all
   become: true
   roles:
     - common
-  tags: common
+  tags:
+    - common
 
-#- name: Deploy Nginx + Keepalived LB
-#  hosts: lb_master,lb_backup
-#  become: true
-#  roles:
-#    - lb
-#  tags: lb
+# =========================
+# 3. Install container runtime
+# =========================
 
-- name: Install containerd (all)
+- name: Install containerd
   hosts: all
   become: true
   roles:
     - containerd
-  tags: containerd
+  tags:
+    - containerd
 
-- name: Install kubelet/kubeadm/kubectl (all)
+# =========================
+# 4. Install Kubernetes packages
+# kubelet / kubeadm / kubectl
+# =========================
+
+- name: Install kubelet kubeadm kubectl
   hosts: all
   become: true
   roles:
     - kube
-  tags: kube
+  tags:
+    - kube
 
-- name: Deploy kube-vip (control-plane VIP) on all masters
-  hosts: masters
+# =========================
+# 5. Deploy kube-vip static pod manifest on first master before kubeadm init
+# 你的 inventory 里有 [master1-vip]，建议用它
+# =========================
+
+- name: Deploy kube-vip for first control-plane node
+  hosts: master1-vip
   become: true
   roles:
     - kube-vip
-  tags: kubevip
+  tags:
+    - kubevip
 
-- name: Kubeadm init on master1
+# =========================
+# 6. Kubeadm init on first master
+# =========================
+
+- name: Kubeadm init on first master
   hosts: "{{ groups['masters'][0] }}"
   become: true
   serial: 1
   tasks:
-    - import_role:
+    - name: Init first control-plane node
+      ansible.builtin.import_role:
         name: kubeadm
         tasks_from: init.yml
-#    - import_role:
-#        name: cni
-  tags: init
+  tags:
+    - init
 
-- name: Install CLI tools (kubectl completion, helm)
+# =========================
+# 7. Install CLI tools on first master
+# kubectl completion / helm / cilium cli 等
+# =========================
+
+- name: Install CLI tools
   hosts: "{{ groups['masters'][0] }}"
   become: true
   roles:
@@ -95,43 +94,86 @@
   tags:
     - cli
 
-- name: Deploy Cilium CNI (kube-proxy replacement)
+# =========================
+# 8. Deploy Cilium CNI
+# 建议在 join 其他节点前先安装 CNI
+# =========================
+
+- name: Deploy Cilium CNI
   hosts: "{{ groups['masters'][0] }}"
   become: true
   tasks:
-    - import_role:
+    - name: Install Cilium
+      ansible.builtin.import_role:
         name: cni
   tags:
     - cilium
 
-- name: Deploy kube-vip LoadBalancer (Service type=LoadBalancer)
-  hosts: "{{ groups['masters'][0] }}"
-  become: true
-  tasks:
-    - import_role:
-        name: kube-vip-loadbalance
-  tags:
-    - kubevip-lb
+# =========================
+# 9. Deploy kube-vip manifest on other masters before/around join
+# 如果你的 kube-vip role 是生成静态 Pod manifest，可以在其他 master join 前准备
+# 如果该 role 依赖 /etc/kubernetes/manifests 已存在，放到 join_masters 后面
+# =========================
 
-- name: Join other masters (control-plane)
-  hosts: masters
+- name: Prepare kube-vip for other control-plane nodes
+  hosts: othermaster-vip
+  become: true
+  roles:
+    - kube-vip
+  tags:
+    - kubevip
+
+# =========================
+# 10. Join other masters
+# =========================
+
+- name: Join other masters
+  hosts: othermaster-vip
   become: true
   serial: 1
   tasks:
-    - import_role:
+    - name: Join control-plane node
+      ansible.builtin.import_role:
         name: kubeadm
         tasks_from: join_masters.yml
-  tags: join_masters
+  tags:
+    - join_masters
+
+# =========================
+# 11. Join workers
+# =========================
 
 - name: Join workers
   hosts: nodes
   become: true
-  serial: 10
+  serial: 3
   tasks:
-    - import_role:
+    - name: Join worker node
+      ansible.builtin.import_role:
         name: kubeadm
         tasks_from: join_workers.yml
-  tags: join_workers
+  tags:
+    - join_workers
+
+# =========================
+# 12. Deploy kube-vip LoadBalancer
+# Service type=LoadBalancer
+# 建议等集群节点加入后再部署
+# =========================
+
+- name: Deploy kube-vip LoadBalancer
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Deploy kube-vip cloud provider / LoadBalancer
+      ansible.builtin.import_role:
+        name: kube-vip-loadbalance
+  tags:
+    - kubevip-lb
+
+# =========================
+# 13. Deploy NFS server
+# =========================
 
 - name: Deploy NFS server
   hosts: nfs-server
@@ -140,6 +182,10 @@
     - nfs-server
   tags:
     - nfs
+
+# =========================
+# 14. Init directories on NFS server
+# =========================
 
 - name: Init directories on NFS server
   hosts: nfs-server
