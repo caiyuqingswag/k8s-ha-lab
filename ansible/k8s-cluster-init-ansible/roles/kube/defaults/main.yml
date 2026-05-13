@@ -1,0 +1,12 @@
+---
+k8s_version: "1.36.1"
+k8s_minor_version: "1.36"
+
+# 国内 kubeadm 镜像仓库
+image_repo: "registry.cn-hangzhou.aliyuncs.com/google_containers"
+
+# 阿里云 Kubernetes 新版 apt 源
+k8s_apt_repo_base: "https://mirrors.aliyun.com/kubernetes-new/core/stable"
+
+# 是否在 master 预拉取控制面镜像
+kubeadm_prepull_images: true
