@@ -37,6 +37,7 @@
 
 # =========================
 # Base packages
+# Do NOT install chrony
 # =========================
 
 - name: Update apt cache
@@ -54,7 +55,6 @@
       - sudo
       - vim
       - bash-completion
-      - chrony
       - tar
       - iproute2
       - iputils-ping
@@ -234,43 +234,36 @@
 
 # =========================
 # Time sync
+# Use Ubuntu default systemd-timesyncd
+# Do NOT use chrony
 # =========================
 
-- name: Disable systemd-timesyncd when using chrony
+# =========================
+# Time sync
+# Use Ubuntu default systemd-timesyncd
+# Domestic NTP only
+# =========================
+
+- name: Configure systemd-timesyncd
+  ansible.builtin.copy:
+    dest: /etc/systemd/timesyncd.conf
+    content: |
+      [Time]
+      NTP=ntp1.aliyun.com ntp2.aliyun.com ntp1.tencent.com ntp2.tencent.com
+      FallbackNTP=ntp.ntsc.ac.cn cn.ntp.org.cn
+    mode: "0644"
+  notify: Restart systemd-timesyncd
+
+- name: Enable systemd-timesyncd
   ansible.builtin.systemd:
     name: systemd-timesyncd
-    enabled: false
-    state: stopped
-  failed_when: false
-
-- name: Configure chrony
-  ansible.builtin.copy:
-    dest: /etc/chrony/chrony.conf
-    content: |
-      # Alibaba Cloud NTP
-      server ntp1.aliyun.com iburst
-      server ntp2.aliyun.com iburst
-
-      # Tencent Cloud NTP
-      server ntp1.tencent.com iburst
-      server ntp2.tencent.com iburst
-
-      # Public fallback
-      server time.cloudflare.com iburst
-      server time.google.com iburst
-
-      driftfile /var/lib/chrony/drift
-      makestep 1.0 3
-      rtcsync
-      logdir /var/log/chrony
-    mode: "0644"
-  notify: Restart chrony
-
-- name: Enable chrony
-  ansible.builtin.systemd:
-    name: chrony
     enabled: true
     state: started
+
+- name: Enable NTP via timedatectl
+  ansible.builtin.command: timedatectl set-ntp true
+  changed_when: false
+  failed_when: false
 
 # =========================
 # Journald limits

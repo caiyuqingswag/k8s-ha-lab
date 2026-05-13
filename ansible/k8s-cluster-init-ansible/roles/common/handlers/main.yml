@@ -5,9 +5,9 @@
 - name: Reexec systemd
   ansible.builtin.command: systemctl daemon-reexec
 
-- name: Restart chrony
+- name: Restart systemd-timesyncd
   ansible.builtin.systemd:
-    name: chrony
+    name: systemd-timesyncd
     state: restarted
 
 - name: Restart journald
