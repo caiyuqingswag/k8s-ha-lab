@@ -244,6 +244,13 @@
 # Domestic NTP only
 # =========================
 
+- name: Install systemd-timesyncd
+  ansible.builtin.apt:
+    name: systemd-timesyncd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
 - name: Configure systemd-timesyncd
   ansible.builtin.copy:
     dest: /etc/systemd/timesyncd.conf
@@ -256,9 +263,10 @@
 
 - name: Enable systemd-timesyncd
   ansible.builtin.systemd:
-    name: systemd-timesyncd
+    name: systemd-timesyncd.service
     enabled: true
     state: started
+    daemon_reload: true
 
 - name: Enable NTP via timedatectl
   ansible.builtin.command: timedatectl set-ntp true
