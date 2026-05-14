@@ -1,3 +1,18 @@
-- import_tasks: helm.yml
-- import_tasks: completion.yml
-- import_tasks: cilium.yml
+---
+- name: Install Helm CLI
+  ansible.builtin.import_tasks: helm.yml
+  when: inventory_hostname == cli_tools_target_host
+
+- name: Install Cilium CLI
+  ansible.builtin.import_tasks: cilium.yml
+  when: inventory_hostname == cli_tools_target_host
+
+- name: Install Hubble CLI
+  ansible.builtin.import_tasks: hubble.yml
+  when:
+    - inventory_hostname == cli_tools_target_host
+    - hubble_cli_enabled | default(false)
+
+- name: Install shell completions
+  ansible.builtin.import_tasks: completion.yml
+  when: inventory_hostname == cli_tools_target_host
