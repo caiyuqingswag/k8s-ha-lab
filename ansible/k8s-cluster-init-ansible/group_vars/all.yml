@@ -21,3 +21,16 @@ control_plane_endpoint: "prod-hz-01-api:6443"
 # 不同环境只改这里
 # =========================
 global_storage_class: "longhorn"
+
+
+# =========================
+# 外部minio备份velero
+# =========================
+velero_bucket: "velero-prod-hz-01"
+velero_region: "us-east-1"
+velero_s3_url: "https://minio.your-domain.com"
+velero_s3_force_path_style: "true"
+velero_s3_insecure_skip_tls_verify: "false"
+
+velero_access_key_id: "你的 MinIO AccessKey"
+velero_secret_access_key: "你的 MinIO SecretKey"

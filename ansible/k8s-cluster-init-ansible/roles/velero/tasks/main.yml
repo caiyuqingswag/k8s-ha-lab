@@ -1,0 +1,183 @@
+﻿---
+# =========================
+# Install Velero by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Velero working directory exists
+  ansible.builtin.file:
+    path: "{{ velero_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Velero Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ velero_chart_archive }}"
+    dest: "{{ velero_work_dir }}/{{ velero_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Velero credentials
+  ansible.builtin.template:
+    src: cloud-credentials.j2
+    dest: "{{ velero_work_dir }}/cloud-credentials"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Velero values.yaml
+  ansible.builtin.template:
+    src: velero-values.yaml.j2
+    dest: "{{ velero_work_dir }}/values.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Velero namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ velero_namespace }}"
+  register: velero_ns_create
+  failed_when:
+    - velero_ns_create.rc != 0
+    - "'AlreadyExists' not in velero_ns_create.stderr"
+  changed_when: velero_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create or update Velero cloud credentials secret
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ velero_namespace }}"
+      - create
+      - secret
+      - generic
+      - cloud-credentials
+      - --from-file=cloud={{ velero_work_dir }}/cloud-credentials
+      - --dry-run=client
+      - -o
+      - yaml
+  register: velero_secret_yaml
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Velero cloud credentials secret
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - -
+  args:
+    stdin: "{{ velero_secret_yaml.stdout }}"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Velero via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - velero
+      - "{{ velero_work_dir }}/{{ velero_chart_archive }}"
+      - --namespace
+      - "{{ velero_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ velero_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ velero_helm_timeout }}"
+      - --wait
+  register: velero_helm_result
+  changed_when: "'has been upgraded' in velero_helm_result.stdout or 'has been installed' in velero_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Velero Helm result
+  ansible.builtin.debug:
+    msg: "{{ velero_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Velero deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ velero_namespace }}"
+      - rollout
+      - status
+      - deploy/velero
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Velero pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ velero_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: velero_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Velero pods
+  ansible.builtin.debug:
+    msg: "{{ velero_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Velero BackupStorageLocation
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ velero_namespace }}"
+      - get
+      - backupstoragelocation
+      - -o
+      - wide
+  register: velero_bsl
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Velero BackupStorageLocation
+  ansible.builtin.debug:
+    msg: "{{ velero_bsl.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]

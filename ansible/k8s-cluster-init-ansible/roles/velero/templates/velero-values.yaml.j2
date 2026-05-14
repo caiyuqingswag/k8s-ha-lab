@@ -1,0 +1,65 @@
+﻿# ===============================
+# Velero Helm values
+# External MinIO / S3-compatible object storage
+# ===============================
+
+image:
+  repository: "{{ velero_image_repository }}"
+  tag: "{{ velero_image_tag }}"
+
+credentials:
+  useSecret: true
+  existingSecret: cloud-credentials
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: "{{ velero_provider }}"
+      bucket: "{{ velero_bucket }}"
+      default: true
+      config:
+        region: "{{ velero_region }}"
+        s3Url: "{{ velero_s3_url }}"
+        s3ForcePathStyle: "{{ velero_s3_force_path_style }}"
+        insecureSkipTLSVerify: "{{ velero_s3_insecure_skip_tls_verify }}"
+
+{% if velero_enable_volume_snapshots | bool %}
+  volumeSnapshotLocation:
+    - name: default
+      provider: "{{ velero_provider }}"
+      config:
+        region: "{{ velero_region }}"
+{% else %}
+  volumeSnapshotLocation: []
+{% endif %}
+
+  defaultBackupStorageLocation: default
+  defaultBackupTTL: "{{ velero_default_backup_ttl }}"
+
+deployNodeAgent: {{ velero_deploy_node_agent | bool | lower }}
+
+nodeAgent:
+  podVolumePath: /var/lib/kubelet/pods
+
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.12.2
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+snapshotsEnabled: {{ velero_enable_volume_snapshots | bool | lower }}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+metrics:
+  enabled: true
+  scrapeInterval: 30s
+  scrapeTimeout: 10s

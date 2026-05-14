@@ -275,6 +275,14 @@
   tags:
     - prometheus
 
+- name: Install Velero backup
+  hosts: all
+  become: true
+  roles:
+    - role: velero
+  tags:
+    - velero
+
 
 - name: Deploy NFS server
   hosts: nfs-server
