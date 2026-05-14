@@ -202,9 +202,7 @@
   hosts: all
   become: true
   roles:
-    - role: longhorn
-      tags:
-        - always
+    - longhorn
   tags:
     - longhorn
 
@@ -216,9 +214,7 @@
   hosts: all
   become: true
   roles:
-    - role: metrics-server
-      tags:
-        - always
+    - etrics-server
   tags:
     - metrics
 
