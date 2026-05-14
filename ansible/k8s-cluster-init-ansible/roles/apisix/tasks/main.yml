@@ -1,0 +1,167 @@
+---
+# =========================
+# Install Apache APISIX by offline Helm chart
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure APISIX working directory exists
+  ansible.builtin.file:
+    path: "{{ apisix_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy APISIX Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ apisix_chart_archive }}"
+    dest: "{{ apisix_work_dir }}/{{ apisix_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render APISIX values.yaml
+  ansible.builtin.template:
+    src: apisix-values.yaml.j2
+    dest: "{{ apisix_work_dir }}/values.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create APISIX namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ apisix_namespace }}"
+  register: apisix_ns_create
+  failed_when:
+    - apisix_ns_create.rc != 0
+    - "'AlreadyExists' not in apisix_ns_create.stderr"
+  changed_when: apisix_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade APISIX via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - apisix
+      - "{{ apisix_work_dir }}/{{ apisix_chart_archive }}"
+      - --namespace
+      - "{{ apisix_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ apisix_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ apisix_helm_timeout }}"
+      - --wait
+  register: apisix_helm_result
+  changed_when: "'has been upgraded' in apisix_helm_result.stdout or 'has been installed' in apisix_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show APISIX Helm result
+  ansible.builtin.debug:
+    msg: "{{ apisix_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for APISIX gateway deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ apisix_namespace }}"
+      - rollout
+      - status
+      - deploy/apisix
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+  failed_when: false
+
+- name: Show APISIX pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ apisix_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: apisix_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print APISIX pods
+  ansible.builtin.debug:
+    msg: "{{ apisix_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show APISIX services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ apisix_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: apisix_svcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print APISIX services
+  ansible.builtin.debug:
+    msg: "{{ apisix_svcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Verify APISIXRoute CRD exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - crd
+      - apisixroutes.apisix.apache.org
+  register: apisixroute_crd_check
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show APISIXRoute CRD status
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        'OK: APISIXRoute CRD exists'
+        if apisixroute_crd_check.rc == 0
+        else 'WARNING: APISIXRoute CRD not found'
+      }}
+  when: inventory_hostname == groups['masters'][0]

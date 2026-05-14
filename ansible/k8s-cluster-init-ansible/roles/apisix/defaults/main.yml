@@ -1,0 +1,32 @@
+---
+apisix_namespace: "devops"
+
+apisix_chart_archive: "apisix.tgz"
+apisix_work_dir: "/etc/kubernetes/apisix"
+
+# Gateway 暴露方式
+apisix_gateway_type: "NodePort"
+
+# 固定 NodePort，方便后续接 kube-vip LB / 云安全组 / APISIX 入口
+apisix_gateway_http_nodeport: 30080
+apisix_gateway_https_nodeport: 30443
+
+# APISIX Admin Key
+# 强烈建议放到 ansible-vault，不要明文放 git
+apisix_admin_key: "CHANGE_ME_USE_ANSIBLE_VAULT"
+
+# etcd
+apisix_etcd_replica_count: 3
+apisix_etcd_persistence_enabled: true
+apisix_etcd_persistence_size: "8Gi"
+apisix_etcd_storage_class: "longhorn"
+
+# ingress-controller
+apisix_ingress_controller_enabled: true
+apisix_gateway_proxy_create_default: true
+
+# Helm
+apisix_helm_timeout: "10m"
+
+#存储策略
+longhorn_reclaim_policy: "Retain"

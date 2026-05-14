@@ -1,0 +1,41 @@
+# ===============================
+# Apache APISIX Helm values
+# ===============================
+
+gateway:
+  type: {{ apisix_gateway_type }}
+
+  http:
+    enabled: true
+
+  tls:
+    enabled: true
+
+  {% if apisix_gateway_type == "NodePort" %}
+  nodePort:
+    http: {{ apisix_gateway_http_nodeport }}
+    tls: {{ apisix_gateway_https_nodeport }}
+  {% endif %}
+
+admin:
+  enabled: true
+  credentials:
+    admin: "{{ apisix_admin_key }}"
+
+ingress-controller:
+  enabled: {{ apisix_ingress_controller_enabled | bool | lower }}
+
+  apisix:
+    adminService:
+      namespace: "{{ apisix_namespace }}"
+
+  gatewayProxy:
+    createDefault: {{ apisix_gateway_proxy_create_default | bool | lower }}
+
+etcd:
+  replicaCount: {{ apisix_etcd_replica_count }}
+
+  persistence:
+    enabled: {{ apisix_etcd_persistence_enabled | bool | lower }}
+    size: "{{ apisix_etcd_persistence_size }}"
+    storageClass: "{{ apisix_etcd_storage_class }}"
