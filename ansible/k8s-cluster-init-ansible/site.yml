@@ -193,7 +193,6 @@
     - longhorn-prereq
   tags:
     - longhorn-prereq
-    - longhorn
 
 # =========================
 # Install Longhorn storage
