@@ -1,7 +1,7 @@
 ---
 apisix_namespace: "devops"
 
-apisix_chart_archive: "apisix.tgz"
+apisix_chart_archive: "apisix-2.14.0.tgz"
 apisix_work_dir: "/etc/kubernetes/apisix"
 
 # Gateway 暴露方式
