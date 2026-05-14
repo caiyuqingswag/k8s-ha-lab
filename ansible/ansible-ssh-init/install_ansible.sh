@@ -75,12 +75,29 @@ echo "[OK] 已生成 ${ANSIBLE_CFG_FILE}"
 # 支持：
 #   192.168.0.51
 #   master1 ansible_host=192.168.0.51
-# 排除分组、变量、注释、空行
+# 跳过：
+#   分组行 [xxx]
+#   变量分组 [all:vars]
+#   变量行 ansible_xxx=yyy
+#   注释和空行
 mapfile -t HOSTS < <(
   awk '
     /^[[:space:]]*$/ { next }
     /^[[:space:]]*#/ { next }
-    /^\[/ { next }
+
+    /^\[/ {
+      if ($0 ~ /:vars\]/) {
+        in_vars=1
+      } else {
+        in_vars=0
+      }
+      next
+    }
+
+    in_vars == 1 { next }
+
+    /^[A-Za-z_][A-Za-z0-9_]*=/ { next }
+
     /ansible_host=/ {
       for (i=1; i<=NF; i++) {
         if ($i ~ /^ansible_host=/) {
@@ -90,21 +107,12 @@ mapfile -t HOSTS < <(
       }
       next
     }
+
     {
       print $1
     }
   ' "${INVENTORY}" | sort -u
 )
-
-if [ "${#HOSTS[@]}" -eq 0 ]; then
-  echo "❌ 没有从 ${INVENTORY} 解析到任何主机"
-  exit 1
-fi
-
-echo
-echo "将初始化以下主机："
-printf '  - %s\n' "${HOSTS[@]}"
-echo
 
 # 6. 临时 inventory 目录
 TMP_DIR="$(mktemp -d)"
