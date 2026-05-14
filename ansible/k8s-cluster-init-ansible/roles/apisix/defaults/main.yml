@@ -27,6 +27,3 @@ apisix_gateway_proxy_create_default: true
 
 # Helm
 apisix_helm_timeout: "10m"
-
-#存储策略
-longhorn_reclaim_policy: "Retain"

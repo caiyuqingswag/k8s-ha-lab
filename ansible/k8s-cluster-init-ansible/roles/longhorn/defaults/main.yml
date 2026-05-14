@@ -20,3 +20,6 @@ longhorn_service_ui_type: "ClusterIP"
 # Helm
 longhorn_helm_wait: true
 longhorn_helm_timeout: "15m"
+
+#存储策略
+longhorn_reclaim_policy: "Retain"
