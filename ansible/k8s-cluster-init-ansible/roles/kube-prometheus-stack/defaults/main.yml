@@ -1,0 +1,40 @@
+﻿---
+prometheus_namespace: "monitoring"
+
+# 建议你把离线包统一改名成 kube-prometheus-stack.tgz
+prometheus_chart_archive: "kube-prometheus-stack-85.0.3.tgz"
+prometheus_work_dir: "/etc/kubernetes/kube-prometheus-stack"
+
+# 你已经单独装了 Grafana，所以这里关闭 chart 自带 Grafana
+prometheus_grafana_enabled: false
+
+# 存储
+prometheus_storage_class: "longhorn"
+prometheus_storage_size: "50Gi"
+alertmanager_storage_class: "longhorn"
+alertmanager_storage_size: "10Gi"
+
+# Prometheus 保留时间
+prometheus_retention: "7d"
+
+# 副本数
+prometheus_replicas: 1
+alertmanager_replicas: 1
+
+# 资源
+prometheus_cpu_request: "500m"
+prometheus_memory_request: "2Gi"
+prometheus_cpu_limit: "4"
+prometheus_memory_limit: "8Gi"
+
+alertmanager_cpu_request: "100m"
+alertmanager_memory_request: "256Mi"
+alertmanager_cpu_limit: "1000m"
+alertmanager_memory_limit: "1Gi"
+
+# Grafana datasource sidecar 使用
+grafana_namespace: "monitoring"
+grafana_prometheus_datasource_name: "Prometheus"
+grafana_prometheus_datasource_url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+
+prometheus_helm_timeout: "15m"

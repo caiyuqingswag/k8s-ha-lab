@@ -267,6 +267,15 @@
   tags:
     - alloy
 
+- name: Install kube-prometheus-stack
+  hosts: all
+  become: true
+  roles:
+    - role: kube-prometheus-stack
+  tags:
+    - prometheus
+
+
 - name: Deploy NFS server
   hosts: nfs-server
   become: true
