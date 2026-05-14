@@ -214,7 +214,7 @@
   hosts: all
   become: true
   roles:
-    - etrics-server
+    - metrics-server
   tags:
     - metrics
 
