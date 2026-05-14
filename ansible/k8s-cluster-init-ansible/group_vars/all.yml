@@ -13,11 +13,5 @@ cgroup_driver: "systemd"
 #system_update的控制台兼master1
 system_update_control_host: master1
 
-
-# kube-vip
-kube_vip_address: "prod-hz-01-api"
-kube_vip_interface: "eth0"
-kube_vip_port: 6443
-
 # kubeadm HA endpoint
 control_plane_endpoint: "prod-hz-01-api:6443"
