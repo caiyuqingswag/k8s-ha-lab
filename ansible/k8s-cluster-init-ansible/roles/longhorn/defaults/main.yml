@@ -1,0 +1,22 @@
+---
+longhorn_version: "1.11.2"
+longhorn_chart_archive: "longhorn-1.11.2.tgz"
+longhorn_namespace: "longhorn-system"
+longhorn_work_dir: "/etc/kubernetes/longhorn"
+
+# 默认 StorageClass
+longhorn_default_storage_class: true
+
+# 你现在 3 master + 3 worker，副本数建议 3
+# 如果以后只有 1-2 台节点测试，改成 1 或 2
+longhorn_default_replica_count: 3
+
+# Longhorn 数据目录
+longhorn_data_path: "/var/lib/longhorn"
+
+# UI 先不暴露公网，后面通过 APISIX/Ingress 再开放
+longhorn_service_ui_type: "ClusterIP"
+
+# Helm
+longhorn_helm_wait: true
+longhorn_helm_timeout: "15m"

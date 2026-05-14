@@ -1,0 +1,27 @@
+# ===============================
+# Longhorn Helm values
+# ===============================
+
+persistence:
+  defaultClass: {{ longhorn_default_storage_class | bool | lower }}
+  defaultClassReplicaCount: {{ longhorn_default_replica_count }}
+  defaultDataLocality: disabled
+  reclaimPolicy: Delete
+
+defaultSettings:
+  defaultReplicaCount: {{ longhorn_default_replica_count }}
+  defaultDataPath: "{{ longhorn_data_path }}"
+  createDefaultDiskLabeledNodes: false
+  storageOverProvisioningPercentage: 100
+  storageMinimalAvailablePercentage: 25
+  replicaSoftAntiAffinity: false
+  allowVolumeCreationWithDegradedAvailability: true
+  nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
+  orphanAutoDeletion: true
+
+longhornUI:
+  replicas: 1
+
+service:
+  ui:
+    type: {{ longhorn_service_ui_type }}

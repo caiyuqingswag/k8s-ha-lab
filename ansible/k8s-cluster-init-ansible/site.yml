@@ -181,9 +181,32 @@
 #   tags:
 #     - kubevip-lb
 
+
 # =========================
-# 14. Deploy NFS server
+# Longhorn prerequisites
 # =========================
+
+- name: Install Longhorn prerequisites
+  hosts: all
+  become: true
+  roles:
+    - longhorn-prereq
+  tags:
+    - longhorn-prereq
+    - longhorn
+
+# =========================
+# Install Longhorn storage
+# =========================
+
+- name: Install Longhorn storage
+  hosts: all
+  become: true
+  roles:
+    - longhorn
+  tags:
+    - longhorn
+
 
 - name: Deploy NFS server
   hosts: nfs-server
