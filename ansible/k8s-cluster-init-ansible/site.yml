@@ -202,7 +202,9 @@
   hosts: all
   become: true
   roles:
-    - longhorn
+    - role: longhorn
+      tags:
+        - always
   tags:
     - longhorn
 
