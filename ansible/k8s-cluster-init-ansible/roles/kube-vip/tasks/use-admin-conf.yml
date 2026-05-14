@@ -12,8 +12,8 @@
 - name: Switch kube-vip kubeconfig from super-admin.conf to admin.conf
   ansible.builtin.replace:
     path: /etc/kubernetes/manifests/kube-vip.yaml
-    regexp: 'path: /etc/kubernetes/super-admin\.conf'
-    replace: 'path: /etc/kubernetes/admin.conf'
+    regexp: 'path: "/etc/kubernetes/super-admin\.conf"'
+    replace: 'path: "/etc/kubernetes/admin.conf"'
   when:
     - kube_vip_manifest_stat.stat.exists
     - inventory_hostname in (groups['master1-vip'] | default([]))
@@ -21,6 +21,13 @@
 - name: Wait for kubelet to reload kube-vip static pod
   ansible.builtin.pause:
     seconds: 5
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))
+
+- name: Verify kube-vip now uses admin.conf
+  ansible.builtin.command: grep '/etc/kubernetes/admin.conf' /etc/kubernetes/manifests/kube-vip.yaml
+  changed_when: false
   when:
     - kube_vip_manifest_stat.stat.exists
     - inventory_hostname in (groups['master1-vip'] | default([]))

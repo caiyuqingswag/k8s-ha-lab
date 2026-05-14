@@ -1,8 +1,6 @@
 ---
 # =========================
 # 1. System update and kernel upgrade
-# 初始环境可以先统一更新系统
-# 注意：不要用 strategy: free，否则 summary 可能不完整
 # =========================
 
 - name: System update and kernel upgrade
@@ -15,8 +13,6 @@
 
 # =========================
 # 2. Common OS init
-# Ubuntu 24.04 基础初始化：
-# hostname / hosts / sysctl / bpffs / timesyncd / limits / journald
 # =========================
 
 - name: Common OS init
@@ -41,7 +37,6 @@
 
 # =========================
 # 4. Install Kubernetes packages
-# kubelet / kubeadm / kubectl
 # =========================
 
 - name: Install kubelet kubeadm kubectl
@@ -53,9 +48,8 @@
     - kube
 
 # =========================
-# 5. Deploy kube-vip static pod manifest on first master before kubeadm init
+# 5. Deploy kube-vip on first master before kubeadm init
 # master1-vip 使用 /etc/kubernetes/super-admin.conf
-# kubeadm init 完成后会切回 /etc/kubernetes/admin.conf
 # =========================
 
 - name: Deploy kube-vip for first control-plane node
@@ -84,8 +78,7 @@
     - init
 
 # =========================
-# 7. Switch kube-vip on first master from super-admin.conf to admin.conf
-# 降低长期运行权限
+# 7. Switch kube-vip on first master to admin.conf
 # =========================
 
 - name: Switch kube-vip on first master to admin.conf
@@ -102,7 +95,6 @@
 
 # =========================
 # 8. Install CLI tools on first master
-# kubectl completion / helm / cilium cli 等
 # =========================
 
 - name: Install CLI tools
@@ -115,7 +107,6 @@
 
 # =========================
 # 9. Deploy Cilium CNI
-# 建议在 join 其他节点前先安装 CNI
 # =========================
 
 - name: Deploy Cilium CNI
@@ -129,21 +120,8 @@
     - cilium
 
 # =========================
-# 10. Prepare kube-vip static pod manifest on other masters
-# othermaster-vip 使用 /etc/kubernetes/admin.conf
-# =========================
-
-- name: Prepare kube-vip for other control-plane nodes
-  hosts: othermaster-vip
-  become: true
-  roles:
-    - kube-vip
-  tags:
-    - kubevip
-    - join_masters
-
-# =========================
-# 11. Join other masters
+# 10. Join other masters first
+# 注意：先 join，join 成功后其他 master 才会生成 /etc/kubernetes/admin.conf
 # =========================
 
 - name: Join other masters
@@ -156,6 +134,20 @@
         name: kubeadm
         tasks_from: join_masters.yml
   tags:
+    - join_masters
+
+# =========================
+# 11. Deploy kube-vip on other masters after join
+# othermaster-vip 使用 /etc/kubernetes/admin.conf
+# =========================
+
+- name: Deploy kube-vip for other control-plane nodes
+  hosts: othermaster-vip
+  become: true
+  roles:
+    - kube-vip
+  tags:
+    - kubevip
     - join_masters
 
 # =========================
@@ -176,8 +168,7 @@
 
 # =========================
 # 13. Deploy kube-vip LoadBalancer
-# Service type=LoadBalancer
-# 你说先不管，这里先注释
+# 先不启用
 # =========================
 
 # - name: Deploy kube-vip LoadBalancer

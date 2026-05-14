@@ -94,3 +94,10 @@
         if kube_proxy_check.rc != 0
         else 'WARNING: kube-proxy DaemonSet exists.'
       }}
+
+- name: Verify kube-vip endpoint is reachable after init
+  ansible.builtin.command: >
+    curl -k --max-time 5 https://{{ kubevip_api_ip }}:6443/readyz
+  register: vip_readyz
+  changed_when: false
+  failed_when: vip_readyz.rc != 0 or 'ok' not in vip_readyz.stdout

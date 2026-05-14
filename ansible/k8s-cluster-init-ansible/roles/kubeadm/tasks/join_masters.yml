@@ -1,41 +1,125 @@
-- name: Check if already joined
-  stat:
+---
+# =========================
+# Join other masters as control-plane
+# =========================
+
+- name: Check if this master already joined
+  ansible.builtin.stat:
     path: /etc/kubernetes/kubelet.conf
   register: kubeletconf
-  tags: join_masters
+  tags:
+    - join_masters
 
-# 若未注入 k8s_cluster（比如只跑 --tags join_masters），自动从第一台 master 拉取 join 信息
-- name: Ensure cluster join info is available (fetch from first master if missing)
+- name: Ensure API VIP is reachable before joining masters
+  ansible.builtin.command: >
+    curl -k --max-time 5 https://{{ kubevip_api_ip }}:6443/readyz
+  register: api_vip_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until:
+    - api_vip_ready.rc == 0
+    - "'ok' in api_vip_ready.stdout"
+  tags:
+    - join_masters
+
+- name: Ensure cluster join info is available
   block:
     - name: Fetch join command from first master
-      command: kubeadm token create --print-join-command
+      ansible.builtin.command: kubeadm token create --print-join-command
       register: _join_cmd
       changed_when: false
       delegate_to: "{{ groups['masters'][0] }}"
       run_once: true
 
-    - name: Fetch certificate key from first master
-      command: kubeadm init phase upload-certs --upload-certs
+    - name: Upload certs and fetch certificate key from first master
+      ansible.builtin.command: kubeadm init phase upload-certs --upload-certs
       register: _cert_out
       changed_when: false
       delegate_to: "{{ groups['masters'][0] }}"
       run_once: true
 
-    - name: Publish join info to k8s_cluster
-      add_host:
+    - name: Publish control-plane join info
+      ansible.builtin.add_host:
         name: k8s_cluster
         join_command: "{{ _join_cmd.stdout | mandatory }}"
         certificate_key: "{{ (_cert_out.stdout_lines | last) | mandatory }}"
       run_once: true
-  when: hostvars['k8s_cluster'] is not defined
-  tags: join_masters
+  when: "'k8s_cluster' not in hostvars"
+  tags:
+    - join_masters
 
 - name: Join as control-plane
-  command: >
+  ansible.builtin.command: >
     {{ hostvars['k8s_cluster'].join_command | mandatory }}
     --control-plane
     --certificate-key {{ hostvars['k8s_cluster'].certificate_key | mandatory }}
+    --apiserver-advertise-address {{ ansible_host }}
+    --apiserver-bind-port {{ kubeadm_apiserver_bind_port | default(6443) }}
+    --cri-socket {{ cri_socket }}
+    --node-name {{ inventory_hostname }}
+  register: join_master_result
   when:
     - not kubeletconf.stat.exists
     - inventory_hostname != groups['masters'][0]
-  tags: join_masters
+  tags:
+    - join_masters
+
+- name: Show control-plane join output
+  ansible.builtin.debug:
+    msg: "{{ join_master_result.stdout_lines | default([]) }}"
+  when:
+    - join_master_result is defined
+    - join_master_result.stdout_lines is defined
+  tags:
+    - join_masters
+
+- name: Ensure ubuntu .kube directory exists
+  ansible.builtin.file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+  when:
+    - inventory_hostname != groups['masters'][0]
+  tags:
+    - join_masters
+
+- name: Copy admin.conf to ubuntu kubeconfig on joined master
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/ubuntu/.kube/config
+    remote_src: true
+    owner: ubuntu
+    group: ubuntu
+    mode: "0600"
+  when:
+    - inventory_hostname != groups['masters'][0]
+    - kubeletconf.stat.exists or join_master_result is changed
+  failed_when: false
+  tags:
+    - join_masters
+
+- name: Ensure root .kube directory exists
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: "0700"
+  when:
+    - inventory_hostname != groups['masters'][0]
+  tags:
+    - join_masters
+
+- name: Copy admin.conf to root kubeconfig on joined master
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    mode: "0600"
+  when:
+    - inventory_hostname != groups['masters'][0]
+    - kubeletconf.stat.exists or join_master_result is changed
+  failed_when: false
+  tags:
+    - join_masters

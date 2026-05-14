@@ -1,27 +1,61 @@
-- name: Check if already joined
-  stat:
+---
+# =========================
+# Join worker nodes
+# =========================
+
+- name: Check if this worker already joined
+  ansible.builtin.stat:
     path: /etc/kubernetes/kubelet.conf
   register: kubeletconf
-  tags: join_workers
+  tags:
+    - join_workers
 
-- name: Ensure worker join command is available (fetch from first master if missing)
+- name: Ensure API VIP is reachable before joining workers
+  ansible.builtin.command: >
+    curl -k --max-time 5 https://{{ kubevip_api_ip }}:6443/readyz
+  register: api_vip_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until:
+    - api_vip_ready.rc == 0
+    - "'ok' in api_vip_ready.stdout"
+  tags:
+    - join_workers
+
+- name: Ensure worker join command is available
   block:
     - name: Fetch join command from first master
-      command: kubeadm token create --print-join-command
+      ansible.builtin.command: kubeadm token create --print-join-command
       register: _join_cmd
       changed_when: false
       delegate_to: "{{ groups['masters'][0] }}"
       run_once: true
 
-    - name: Publish join info to k8s_cluster
-      add_host:
+    - name: Publish worker join info
+      ansible.builtin.add_host:
         name: k8s_cluster
         join_command: "{{ _join_cmd.stdout | mandatory }}"
       run_once: true
-  when: hostvars['k8s_cluster'] is not defined or hostvars['k8s_cluster'].join_command is not defined
-  tags: join_workers
+  when: "'k8s_cluster' not in hostvars or hostvars['k8s_cluster'].join_command is not defined"
+  tags:
+    - join_workers
 
 - name: Join worker
-  command: "{{ hostvars['k8s_cluster'].join_command | mandatory }}"
+  ansible.builtin.command: >
+    {{ hostvars['k8s_cluster'].join_command | mandatory }}
+    --cri-socket {{ cri_socket }}
+    --node-name {{ inventory_hostname }}
+  register: join_worker_result
   when: not kubeletconf.stat.exists
-  tags: join_workers
+  tags:
+    - join_workers
+
+- name: Show worker join output
+  ansible.builtin.debug:
+    msg: "{{ join_worker_result.stdout_lines | default([]) }}"
+  when:
+    - join_worker_result is defined
+    - join_worker_result.stdout_lines is defined
+  tags:
+    - join_workers
