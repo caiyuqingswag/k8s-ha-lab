@@ -218,6 +218,14 @@
   tags:
     - metrics
 
+- name: Install cert-manager
+  hosts: all
+  become: true
+  roles:
+    - role: cert-manager
+  tags:
+    - cert
+
 - name: Install Apache APISIX Gateway
   hosts: all
   become: true
