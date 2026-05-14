@@ -121,24 +121,3 @@
   ansible.builtin.debug:
     msg: "{{ alloy_pods.stdout_lines }}"
   when: inventory_hostname == groups['masters'][0]
-
-- name: Show Alloy logs
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig=/etc/kubernetes/admin.conf
-      - -n
-      - "{{ alloy_namespace }}"
-      - logs
-      - -l
-      - app.kubernetes.io/name=alloy
-      - --tail=50
-  register: alloy_logs
-  changed_when: false
-  failed_when: false
-  when: inventory_hostname == groups['masters'][0]
-
-- name: Print Alloy logs
-  ansible.builtin.debug:
-    msg: "{{ alloy_logs.stdout_lines | default([]) }}"
-  when: inventory_hostname == groups['masters'][0]

@@ -1,21 +1,19 @@
 ﻿---
 alloy_namespace: "logging"
 
-alloy_chart_archive: "alloy-1.8.1.tgz"
+alloy_chart_archive: "alloy.tgz"
 alloy_work_dir: "/etc/kubernetes/alloy"
 
-# Loki push endpoint
+# Loki 地址
+# 如果你的 Loki 在 logging namespace，通常是这个
 alloy_loki_push_url: "http://loki-gateway.logging.svc.cluster.local/loki/api/v1/push"
 
-# 多集群建议使用集群名作为 label
+# 集群标签
 alloy_cluster_name: "prod-hz-01"
 
-# 采集哪些 namespace 的 Pod 日志
+# 采集哪些 namespace
+# 这里先按你原来的业务命名空间来
 alloy_log_namespaces:
-  - kube-system
-  - devops
-  - monitoring
-  - logging
   - prod-itex-components
   - prod-itex-servers
   - prod-paas-components
@@ -23,7 +21,8 @@ alloy_log_namespaces:
   - stable-itex-components
   - stable-itex-servers
 
-# DaemonSet 模式下，每个 Alloy 只采当前节点上的 Pod 日志
+# 是否只采集当前节点上的 Pod 日志
+# DaemonSet 模式建议 true
 alloy_keep_current_node_only: true
 
 # 资源
