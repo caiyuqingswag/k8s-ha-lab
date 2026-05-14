@@ -259,6 +259,13 @@
   tags:
     - loki
 
+- name: Install Grafana Alloy
+  hosts: all
+  become: true
+  roles:
+    - role: alloy
+  tags:
+    - alloy
 
 - name: Deploy NFS server
   hosts: nfs-server
