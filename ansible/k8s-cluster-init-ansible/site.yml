@@ -208,6 +208,19 @@
   tags:
     - longhorn
 
+# =========================
+# Metrics Server
+# =========================
+
+- name: Install metrics-server
+  hosts: all
+  become: true
+  roles:
+    - role: metrics-server
+      tags:
+        - always
+  tags:
+    - metrics
 
 - name: Deploy NFS server
   hosts: nfs-server

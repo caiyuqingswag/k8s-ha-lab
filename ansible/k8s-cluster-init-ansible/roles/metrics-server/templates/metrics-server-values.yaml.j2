@@ -1,0 +1,16 @@
+# ===============================
+# metrics-server values
+# ===============================
+
+replicas: {{ metrics_server_replicas }}
+
+args:
+  - --kubelet-preferred-address-types={{ metrics_server_kubelet_preferred_address_types }}
+{% if metrics_server_kubelet_insecure_tls | bool %}
+  - --kubelet-insecure-tls
+{% endif %}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
