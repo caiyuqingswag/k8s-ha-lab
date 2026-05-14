@@ -1,0 +1,60 @@
+---
+# =========================
+# Cluster identity
+# 多集群管理时每个集群必须唯一
+# 例如：
+#   prod-hz-01
+#   prod-sh-01
+#   prod-bj-01
+# =========================
+
+k8s_cluster_name: "prod-hz-01"
+
+# =========================
+# Kubernetes version
+# 注意：
+# kube role 里 apt 用 1.36.1
+# kubeadm config 里建议用 v1.36.1
+# =========================
+
+k8s_version: "1.36.1"
+
+# =========================
+# Image repository
+# =========================
+
+image_repo: "registry.cn-hangzhou.aliyuncs.com/google_containers"
+
+# =========================
+# API endpoint
+# =========================
+
+control_plane_endpoint: "{{ kubevip_api_name }}:6443"
+
+# =========================
+# Network
+# =========================
+
+pod_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+dns_domain: "cluster.local"
+
+# =========================
+# Runtime / kubelet
+# =========================
+
+cri_socket: "unix:///run/containerd/containerd.sock"
+cgroup_driver: "systemd"
+
+# =========================
+# kube-proxy
+# 使用 Cilium kube-proxy replacement 时必须跳过
+# =========================
+
+kubeadm_skip_kube_proxy: true
+
+# =========================
+# Certificates
+# =========================
+
+kubeadm_upload_certs: true

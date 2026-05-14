@@ -4,29 +4,36 @@ localAPIEndpoint:
   advertiseAddress: {{ ansible_host }}
   bindPort: 6443
 nodeRegistration:
-  criSocket: unix:///run/containerd/containerd.sock
+  criSocket: "{{ cri_socket }}"
   imagePullPolicy: IfNotPresent
   imagePullSerial: true
   name: {{ inventory_hostname }}
   taints: null
+
 ---
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
-clusterName: kubernetes
+clusterName: {{ k8s_cluster_name }}
 imageRepository: {{ image_repo }}
 controlPlaneEndpoint: "{{ control_plane_endpoint }}"
-kubernetesVersion: {{ k8s_version }}
+kubernetesVersion: v{{ k8s_version }}
+apiServer:
+  certSANs:
+    - "{{ kubevip_api_ip }}"
+    - "{{ kubevip_api_name }}"
+    - "{{ control_plane_endpoint.split(':')[0] }}"
+{% for h in groups['masters'] | default([]) %}
+    - "{{ h }}"
+    - "{{ hostvars[h].ansible_host }}"
+{% endfor %}
 etcd:
   local:
     dataDir: /var/lib/etcd
 networking:
-  dnsDomain: cluster.local
+  dnsDomain: {{ dns_domain }}
   podSubnet: {{ pod_cidr }}
   serviceSubnet: {{ service_cidr }}
----
-apiVersion: kubeproxy.config.k8s.io/v1alpha1
-kind: KubeProxyConfiguration
-mode: {{ kubeproxy_mode }}
+
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration

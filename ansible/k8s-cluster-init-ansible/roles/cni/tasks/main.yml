@@ -1,48 +1,45 @@
-- name: Check if kube-system namespace exists
+---
+# =========================
+# Install Cilium CNI by offline Helm chart
+# Run on first master only
+# =========================
+
+- name: Ensure this role runs only on first master
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == groups['masters'][0]
+    fail_msg: "CNI role should run only on the first master."
+
+- name: Check kube-apiserver is reachable
   ansible.builtin.command:
     argv:
       - kubectl
       - --kubeconfig=/etc/kubernetes/admin.conf
       - get
-      - ns
-      - kube-system
-  register: ns_check
+      - --raw=/readyz
+  register: apiserver_ready
   changed_when: false
-  failed_when: false
-  when: inventory_hostname == groups['masters'][0]
-
-- name: Create kube-system namespace if missing
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig=/etc/kubernetes/admin.conf
-      - create
-      - ns
-      - kube-system
-  when:
-    - inventory_hostname == groups['masters'][0]
-    - ns_check.rc != 0
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
 
 - name: Ensure Cilium working directory exists
   ansible.builtin.file:
-    path: /etc/kubernetes/cilium
+    path: "{{ cilium_work_dir }}"
     state: directory
     mode: "0755"
-  when: inventory_hostname == groups['masters'][0]
 
-- name: Copy Cilium Helm chart to control-plane
+- name: Copy Cilium Helm chart to first master
   ansible.builtin.copy:
-    src: cilium-{{ cilium_version }}.tgz
-    dest: /etc/kubernetes/cilium/cilium-{{ cilium_version }}.tgz
+    src: "{{ cilium_chart_archive }}"
+    dest: "{{ cilium_work_dir }}/{{ cilium_chart_archive }}"
     mode: "0644"
-  when: inventory_hostname == groups['masters'][0]
 
 - name: Render Cilium values.yaml
   ansible.builtin.template:
     src: cilium-values.yaml.j2
-    dest: /etc/kubernetes/cilium/values.yaml
+    dest: "{{ cilium_work_dir }}/values.yaml"
     mode: "0644"
-  when: inventory_hostname == groups['masters'][0]
 
 - name: Install or upgrade Cilium via Helm
   ansible.builtin.command:
@@ -51,13 +48,47 @@
       - upgrade
       - --install
       - cilium
-      - /etc/kubernetes/cilium/cilium-{{ cilium_version }}.tgz
+      - "{{ cilium_work_dir }}/{{ cilium_chart_archive }}"
       - --namespace
       - "{{ cilium_namespace }}"
       - --create-namespace
       - -f
-      - /etc/kubernetes/cilium/values.yaml
+      - "{{ cilium_work_dir }}/values.yaml"
       - --reset-values
       - --kubeconfig
       - /etc/kubernetes/admin.conf
-  when: inventory_hostname == groups['masters'][0]
+      - --timeout
+      - "{{ cilium_helm_timeout }}"
+      - "{{ '--wait' if cilium_helm_wait else '' }}"
+  register: cilium_helm_result
+  changed_when: "'has been upgraded' in cilium_helm_result.stdout or 'has been installed' in cilium_helm_result.stdout"
+
+- name: Show Cilium Helm result
+  ansible.builtin.debug:
+    msg: "{{ cilium_helm_result.stdout_lines }}"
+
+- name: Wait for Cilium pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ cilium_namespace }}"
+      - rollout
+      - status
+      - ds/cilium
+      - --timeout=10m
+  changed_when: false
+
+- name: Wait for Cilium operator
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ cilium_namespace }}"
+      - rollout
+      - status
+      - deploy/cilium-operator
+      - --timeout=10m
+  changed_when: false
