@@ -9,9 +9,9 @@ prometheus_work_dir: "/etc/kubernetes/kube-prometheus-stack"
 prometheus_grafana_enabled: false
 
 # 存储
-prometheus_storage_class: "longhorn"
+prometheus_storage_class: "{{ global_storage_class }}"
 prometheus_storage_size: "50Gi"
-alertmanager_storage_class: "longhorn"
+alertmanager_storage_class: "{{ global_storage_class }}"
 alertmanager_storage_size: "10Gi"
 
 # Prometheus 保留时间

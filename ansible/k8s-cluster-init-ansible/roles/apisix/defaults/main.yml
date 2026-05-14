@@ -19,7 +19,7 @@ apisix_admin_key: "CHANGE_ME_USE_ANSIBLE_VAULT"
 apisix_etcd_replica_count: 3
 apisix_etcd_persistence_enabled: true
 apisix_etcd_persistence_size: "8Gi"
-apisix_etcd_storage_class: "longhorn"
+apisix_etcd_storage_class: "{{ global_storage_class }}"
 
 # ingress-controller
 apisix_ingress_controller_enabled: true

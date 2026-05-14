@@ -8,8 +8,8 @@ loki_work_dir: "/etc/kubernetes/loki"
 # 部署模式：中小集群先用 singleBinary
 loki_deployment_mode: "SingleBinary"
 
-# Longhorn 存储
-loki_storage_class: "longhorn"
+# {{ global_storage_class }} 存储
+loki_storage_class: "{{ global_storage_class }}"
 loki_storage_size: "50Gi"
 
 # 副本数

@@ -15,3 +15,9 @@ system_update_control_host: master1
 
 # kubeadm HA endpoint
 control_plane_endpoint: "prod-hz-01-api:6443"
+
+# =========================
+# Global storage class
+# 不同环境只改这里
+# =========================
+global_storage_class: "longhorn"

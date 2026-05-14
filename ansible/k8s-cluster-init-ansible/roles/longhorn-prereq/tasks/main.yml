@@ -1,6 +1,6 @@
 ---
 # =========================
-# Longhorn prerequisites
+# {{ global_storage_class }} prerequisites
 # Ubuntu 24.04
 # Run on all Kubernetes nodes
 # =========================
