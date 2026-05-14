@@ -12,7 +12,6 @@ cilium_work_dir: "/etc/kubernetes/cilium"
 
 # =========================
 # kube-vip / apiserver VIP
-# 建议直接用 IP，别用 prod-hz-01 名称，避免 Pod/host DNS 阶段解析问题
 # =========================
 
 k8s_service_host: "{{ kubevip_api_ip }}"
