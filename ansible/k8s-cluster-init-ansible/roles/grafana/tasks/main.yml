@@ -1,0 +1,144 @@
+---
+# =========================
+# Install Grafana by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Grafana working directory exists
+  ansible.builtin.file:
+    path: "{{ grafana_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Grafana Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ grafana_chart_archive }}"
+    dest: "{{ grafana_work_dir }}/{{ grafana_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Grafana values.yaml
+  ansible.builtin.template:
+    src: grafana-values.yaml.j2
+    dest: "{{ grafana_work_dir }}/values.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Grafana namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ grafana_namespace }}"
+  register: grafana_ns_create
+  failed_when:
+    - grafana_ns_create.rc != 0
+    - "'AlreadyExists' not in grafana_ns_create.stderr"
+  changed_when: grafana_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Grafana via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - grafana
+      - "{{ grafana_work_dir }}/{{ grafana_chart_archive }}"
+      - --namespace
+      - "{{ grafana_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ grafana_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ grafana_helm_timeout }}"
+      - --wait
+  register: grafana_helm_result
+  changed_when: "'has been upgraded' in grafana_helm_result.stdout or 'has been installed' in grafana_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Grafana Helm result
+  ansible.builtin.debug:
+    msg: "{{ grafana_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Grafana deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ grafana_namespace }}"
+      - rollout
+      - status
+      - deploy/grafana
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Grafana pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ grafana_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: grafana_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Grafana pods
+  ansible.builtin.debug:
+    msg: "{{ grafana_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Grafana service
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ grafana_namespace }}"
+      - get
+      - svc
+      - grafana
+      - -o
+      - wide
+  register: grafana_svc
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Grafana service
+  ansible.builtin.debug:
+    msg: "{{ grafana_svc.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
