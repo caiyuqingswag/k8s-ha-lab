@@ -1,7 +1,7 @@
 ﻿---
 alloy_namespace: "logging"
 
-alloy_chart_archive: "alloy.tgz"
+alloy_chart_archive: "alloy-1.8.1.tgz"
 alloy_work_dir: "/etc/kubernetes/alloy"
 
 # Loki 地址
