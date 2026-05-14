@@ -11,7 +11,7 @@ kube_vip_version: "v1.0.4"
 # =========================
 
 kube_vip_address: "{{ kubevip_api_ip }}"
-kube_vip_dns_name: "{{ kubevip_api_name | default('kubevip-api') }}"
+kube_vip_dns_name: "{{ kubevip_api_name | default('prod-hz-01') }}"
 kube_vip_port: 6443
 kube_vip_subnet: 32
 

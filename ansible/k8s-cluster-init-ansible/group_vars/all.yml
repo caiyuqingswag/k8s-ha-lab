@@ -15,9 +15,9 @@ system_update_control_host: master1
 
 
 # kube-vip
-kube_vip_address: "kubevip-api"
+kube_vip_address: "prod-hz-01"
 kube_vip_interface: "eth0"
 kube_vip_port: 6443
 
 # kubeadm HA endpoint
-control_plane_endpoint: "kubevip-api:6443"
+control_plane_endpoint: "prod-hz-01:6443"

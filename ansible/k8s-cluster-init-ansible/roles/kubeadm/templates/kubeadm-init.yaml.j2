@@ -21,7 +21,6 @@ apiServer:
   certSANs:
     - "{{ kubevip_api_ip }}"
     - "{{ kubevip_api_name }}"
-    - "{{ control_plane_endpoint.split(':')[0] }}"
 {% for h in groups['masters'] | default([]) %}
     - "{{ h }}"
     - "{{ hostvars[h].ansible_host }}"
