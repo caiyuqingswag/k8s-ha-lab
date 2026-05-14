@@ -5,9 +5,9 @@ helm_version: "v4.0.4"
 helm_archive: "helm-{{ helm_version }}-linux-amd64.tar.gz"
 helm_tmp_dir: "/tmp/helm"
 
-cilium_cli_archive: "cilium-cli-0.19.3.tar.gz"
+cilium_cli_archive: "cilium-linux-amd64.tar.gz"
 cilium_tmp_dir: "/tmp/cilium"
 
 hubble_cli_enabled: true
-hubble_cli_archive: "hubble-1.19.3.tar.gz"
+hubble_cli_archive: "hubble-linux-amd64.tar.gz"
 hubble_tmp_dir: "/tmp/hubble"
