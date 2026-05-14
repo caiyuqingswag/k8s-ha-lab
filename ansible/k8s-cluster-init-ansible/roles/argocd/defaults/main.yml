@@ -1,0 +1,19 @@
+---
+argocd_namespace: "argocd"
+
+argocd_chart_version: "9.5.14"
+argocd_chart_archive: "argo-cd-9.5.14.tgz"
+argocd_work_dir: "/etc/kubernetes/argocd"
+argocd_server_service_type: "ClusterIP"
+
+# 如果通过 APISIX/CLB 终止 TLS，Argo CD server 建议先 insecure
+# 让外层负责 HTTPS，Argo CD 内部走 HTTP
+argocd_server_insecure: true
+
+# Argo CD 数据持久化
+argocd_redis_enabled: true
+
+# HA 先不用，等平台稳定后再开
+argocd_ha_enabled: false
+
+argocd_helm_timeout: "10m"

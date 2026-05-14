@@ -1,0 +1,145 @@
+---
+# =========================
+# Install Argo CD by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Argo CD working directory exists
+  ansible.builtin.file:
+    path: "{{ argocd_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Argo CD Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ argocd_chart_archive }}"
+    dest: "{{ argocd_work_dir }}/{{ argocd_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Argo CD values.yaml
+  ansible.builtin.template:
+    src: argocd-values.yaml.j2
+    dest: "{{ argocd_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Argo CD namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ argocd_namespace }}"
+  register: argocd_ns_create
+  failed_when:
+    - argocd_ns_create.rc != 0
+    - "'AlreadyExists' not in argocd_ns_create.stderr"
+  changed_when: argocd_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Argo CD via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - argocd
+      - "{{ argocd_work_dir }}/{{ argocd_chart_archive }}"
+      - --namespace
+      - "{{ argocd_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ argocd_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ argocd_helm_timeout }}"
+      - --wait
+  register: argocd_helm_result
+  changed_when: "'has been upgraded' in argocd_helm_result.stdout or 'has been installed' in argocd_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Argo CD Helm result
+  ansible.builtin.debug:
+    msg: "{{ argocd_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Argo CD server deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ argocd_namespace }}"
+      - rollout
+      - status
+      - deploy/argocd-server
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Argo CD repo server deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ argocd_namespace }}"
+      - rollout
+      - status
+      - deploy/argocd-repo-server
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Argo CD pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ argocd_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: argocd_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Argo CD pods
+  ansible.builtin.debug:
+    msg: "{{ argocd_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show initial Argo CD admin password command
+  ansible.builtin.debug:
+    msg:
+      - "Get initial password:"
+      - "kubectl -n {{ argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo"
+      - "Username: admin"
+  when: inventory_hostname == groups['masters'][0]
