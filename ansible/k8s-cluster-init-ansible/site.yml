@@ -247,7 +247,7 @@
   roles:
     - role: apisix
       vars:
-        apisix_namespace: "gateway-public"
+        apisix_namespace: "apisix-gateway-public"
         apisix_release_name: "apisix-public"
         apisix_ingress_class_name: "apisix-public"
         apisix_gateway_http_nodeport: 30080
@@ -273,7 +273,7 @@
   roles:
     - role: apisix
       vars:
-        apisix_namespace: "gateway-internal"
+        apisix_namespace: "apisix-gateway-internal"
         apisix_release_name: "apisix-internal"
         apisix_ingress_class_name: "apisix-internal"
         apisix_gateway_http_nodeport: 30081

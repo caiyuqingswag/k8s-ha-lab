@@ -39,12 +39,23 @@ ingress-controller:
       ingressClass: "{{ apisix_ingress_class_name }}"
       defaultIngressClass: false
 
+    apisix:
+      serviceName: "{{ apisix_release_name }}-admin"
+      serviceNamespace: "{{ apisix_namespace }}"
+      adminAPIVersion: "v3"
+
   apisix:
     adminService:
+      name: "{{ apisix_release_name }}-admin"
       namespace: "{{ apisix_namespace }}"
 
   gatewayProxy:
     createDefault: {{ apisix_gateway_proxy_create_default | bool | lower }}
+    provider:
+      type: ControlPlane
+      controlPlane:
+        endpoints:
+          - "http://{{ apisix_release_name }}-admin.{{ apisix_namespace }}.svc.cluster.local:9180"
 
 etcd:
   replicaCount: {{ apisix_etcd_replica_count }}
