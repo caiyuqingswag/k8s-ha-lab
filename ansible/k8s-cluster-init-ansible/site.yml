@@ -234,13 +234,57 @@
   tags:
     - cert
 
-- name: Install Apache APISIX Gateway
+# =========================
+# APISIX Public Gateway
+# 公网业务入口
+# 公网 CLB -> NodePort 30080
+# APISIXRoute: spec.ingressClassName = apisix-public
+# =========================
+
+- name: Install APISIX public gateway
   hosts: all
   become: true
   roles:
-    - apisix
+    - role: apisix
+      vars:
+        apisix_namespace: "gateway-public"
+        apisix_release_name: "apisix-public"
+        apisix_ingress_class_name: "apisix-public"
+        apisix_gateway_http_nodeport: 30080
+        apisix_gateway_https_nodeport: 30443
+        apisix_work_dir: "/etc/kubernetes/apisix-public"
+      tags:
+        - apisix-public
+        - gateway
   tags:
-    - apisix
+    - apisix-public
+    - gateway
+
+# =========================
+# APISIX Internal Gateway
+# 内部平台入口
+# 内网/白名单 CLB -> NodePort 30081
+# APISIXRoute: spec.ingressClassName = apisix-internal
+# =========================
+
+- name: Install APISIX internal gateway
+  hosts: all
+  become: true
+  roles:
+    - role: apisix
+      vars:
+        apisix_namespace: "gateway-internal"
+        apisix_release_name: "apisix-internal"
+        apisix_ingress_class_name: "apisix-internal"
+        apisix_gateway_http_nodeport: 30081
+        apisix_gateway_https_nodeport: 30444
+        apisix_work_dir: "/etc/kubernetes/apisix-internal"
+      tags:
+        - apisix-internal
+        - gateway
+  tags:
+    - apisix-internal
+    - gateway
 
 - name: Install Argo CD
   hosts: all
@@ -290,6 +334,14 @@
     - role: velero
   tags:
     - velero
+
+- name: Configure APISIX UI routes
+  hosts: all
+  become: true
+  roles:
+    - role: apisix-routes
+  tags:
+    - apisix-routes
 
 
 - name: Deploy NFS server

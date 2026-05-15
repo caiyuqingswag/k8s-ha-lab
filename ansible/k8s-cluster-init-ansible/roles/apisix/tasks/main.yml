@@ -1,7 +1,8 @@
----
+﻿---
 # =========================
 # Install Apache APISIX by offline Helm chart
-# Run from first master only
+# Supports public/internal gateway by variables from site.yml
+# Run Helm operations from first master only
 # =========================
 
 - name: Ensure this role runs with cluster access
@@ -67,7 +68,7 @@
       - helm
       - upgrade
       - --install
-      - apisix
+      - "{{ apisix_release_name }}"
       - "{{ apisix_work_dir }}/{{ apisix_chart_archive }}"
       - --namespace
       - "{{ apisix_namespace }}"
@@ -87,21 +88,6 @@
   ansible.builtin.debug:
     msg: "{{ apisix_helm_result.stdout_lines | default([]) }}"
   when: inventory_hostname == groups['masters'][0]
-
-- name: Wait for APISIX gateway deployment
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig=/etc/kubernetes/admin.conf
-      - -n
-      - "{{ apisix_namespace }}"
-      - rollout
-      - status
-      - deploy/apisix
-      - --timeout=10m
-  changed_when: false
-  when: inventory_hostname == groups['masters'][0]
-  failed_when: false
 
 - name: Show APISIX pods
   ansible.builtin.command:

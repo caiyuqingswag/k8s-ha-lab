@@ -1,5 +1,6 @@
-# ===============================
+﻿# ===============================
 # Apache APISIX Helm values
+# Supports public/internal gateway
 # ===============================
 
 gateway:
@@ -11,11 +12,11 @@ gateway:
   tls:
     enabled: true
 
-  {% if apisix_gateway_type == "NodePort" %}
+{% if apisix_gateway_type == "NodePort" %}
   nodePort:
     http: {{ apisix_gateway_http_nodeport }}
     tls: {{ apisix_gateway_https_nodeport }}
-  {% endif %}
+{% endif %}
 
 admin:
   enabled: true
@@ -24,6 +25,10 @@ admin:
 
 ingress-controller:
   enabled: {{ apisix_ingress_controller_enabled | bool | lower }}
+
+  config:
+    kubernetes:
+      ingress_class: "{{ apisix_ingress_class_name }}"
 
   apisix:
     adminService:

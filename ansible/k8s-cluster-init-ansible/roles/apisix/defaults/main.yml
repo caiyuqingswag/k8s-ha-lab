@@ -1,29 +1,53 @@
----
-apisix_namespace: "devops"
+﻿---
+# =========================
+# Apache APISIX common role defaults
+# This role supports public/internal gateway by vars from site.yml
+# =========================
+
+apisix_namespace: "gateway-public"
+apisix_release_name: "apisix-public"
 
 apisix_chart_archive: "apisix-2.14.0.tgz"
-apisix_work_dir: "/etc/kubernetes/apisix"
+apisix_work_dir: "/etc/kubernetes/apisix-public"
 
-# Gateway 暴露方式
+# =========================
+# Gateway
+# =========================
+
 apisix_gateway_type: "NodePort"
 
-# 固定 NodePort，方便后续接 kube-vip LB / 云安全组 / APISIX 入口
 apisix_gateway_http_nodeport: 30080
 apisix_gateway_https_nodeport: 30443
 
-# APISIX Admin Key
-# 强烈建议放到 ansible-vault，不要明文放 git
+# =========================
+# Ingress Controller
+# public/internal 必须不同
+# APISIXRoute 里的 spec.ingressClassName 要和这里一致
+# =========================
+
+apisix_ingress_class_name: "apisix-public"
+
+apisix_ingress_controller_enabled: true
+apisix_gateway_proxy_create_default: true
+
+# =========================
+# Admin
+# 建议后面放 ansible-vault
+# =========================
+
 apisix_admin_key: "CHANGE_ME_USE_ANSIBLE_VAULT"
 
+# =========================
 # etcd
+# =========================
+
 apisix_etcd_replica_count: 3
 apisix_etcd_persistence_enabled: true
 apisix_etcd_persistence_size: "8Gi"
 apisix_etcd_storage_class: "{{ global_storage_class }}"
 
-# ingress-controller
-apisix_ingress_controller_enabled: true
-apisix_gateway_proxy_create_default: true
-
+# =========================
 # Helm
+# =========================
+
 apisix_helm_timeout: "10m"
