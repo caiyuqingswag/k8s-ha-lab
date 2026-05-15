@@ -1,9 +1,14 @@
 ﻿---
-apisix_routes_work_dir: "/etc/kubernetes/apisix-routes"
+# =========================
+# APISIX internal routes
+# Internal CLB -> apisix-internal NodePort 30081
+# =========================
 
-apisix_ingress_class_name: "apisix"
+apisix_routes_internal_work_dir: "/etc/kubernetes/apisix-routes-internal"
 
-apisix_ui_routes:
+apisix_internal_ingress_class_name: "apisix-internal"
+
+apisix_internal_routes:
   - name: grafana-route
     namespace: monitoring
     host: grafana.itexcloud.com
@@ -33,4 +38,3 @@ apisix_ui_routes:
     host: longhorn.itexcloud.com
     serviceName: longhorn-frontend
     servicePort: 80
-

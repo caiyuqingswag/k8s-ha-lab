@@ -1,6 +1,6 @@
 ﻿---
 # =========================
-# Apply APISIXRoute for platform web UIs
+# Apply APISIXRoute for internal platform UIs
 # Run from first master only
 # =========================
 
@@ -11,17 +11,17 @@
       - groups['masters'] | length > 0
     fail_msg: "masters group is required."
 
-- name: Ensure APISIX routes working directory exists
+- name: Ensure APISIX internal routes working directory exists
   ansible.builtin.file:
-    path: "{{ apisix_routes_work_dir }}"
+    path: "{{ apisix_routes_internal_work_dir }}"
     state: directory
     mode: "0755"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Render APISIX UI routes
+- name: Render APISIX internal routes
   ansible.builtin.template:
-    src: apisix-ui-routes.yaml.j2
-    dest: "{{ apisix_routes_work_dir }}/apisix-ui-routes.yaml"
+    src: apisix-routes-internal.yaml.j2
+    dest: "{{ apisix_routes_internal_work_dir }}/apisix-routes-internal.yaml"
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
@@ -39,34 +39,29 @@
   until: apiserver_ready.rc == 0
   when: inventory_hostname == groups['masters'][0]
 
-- name: Ensure route namespaces exist
+- name: Verify APISIXRoute CRD exists
   ansible.builtin.command:
     argv:
       - kubectl
       - --kubeconfig=/etc/kubernetes/admin.conf
-      - create
-      - namespace
-      - "{{ item }}"
-  loop: "{{ apisix_ui_routes | map(attribute='namespace') | unique | list }}"
-  register: route_ns_create
-  failed_when:
-    - route_ns_create.rc != 0
-    - "'AlreadyExists' not in route_ns_create.stderr"
-  changed_when: route_ns_create.rc == 0
+      - get
+      - crd
+      - apisixroutes.apisix.apache.org
+  changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Apply APISIX UI routes
+- name: Apply APISIX internal routes
   ansible.builtin.command:
     argv:
       - kubectl
       - --kubeconfig=/etc/kubernetes/admin.conf
       - apply
       - -f
-      - "{{ apisix_routes_work_dir }}/apisix-ui-routes.yaml"
+      - "{{ apisix_routes_internal_work_dir }}/apisix-routes-internal.yaml"
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Show APISIX routes
+- name: Show internal APISIX routes
   ansible.builtin.command:
     argv:
       - kubectl
@@ -74,11 +69,13 @@
       - get
       - apisixroute
       - -A
-  register: apisix_routes_result
+      - -o
+      - wide
+  register: apisix_internal_routes_result
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Print APISIX routes
+- name: Print internal APISIX routes
   ansible.builtin.debug:
-    msg: "{{ apisix_routes_result.stdout_lines }}"
+    msg: "{{ apisix_internal_routes_result.stdout_lines }}"
   when: inventory_hostname == groups['masters'][0]

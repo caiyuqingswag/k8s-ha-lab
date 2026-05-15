@@ -1,4 +1,4 @@
-﻿{% for route in apisix_ui_routes %}
+﻿{% for route in apisix_internal_routes %}
 ---
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute
@@ -6,7 +6,7 @@ metadata:
   name: {{ route.name }}
   namespace: {{ route.namespace }}
 spec:
-  ingressClassName: {{ apisix_ingress_class_name }}
+  ingressClassName: {{ apisix_internal_ingress_class_name }}
   http:
     - name: {{ route.name }}
       match:
