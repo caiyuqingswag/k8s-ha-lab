@@ -1,0 +1,54 @@
+﻿---
+trivy_operator_namespace: "security"
+
+trivy_operator_chart_archive: "trivy-operator-0.32.1.tgz"
+trivy_operator_work_dir: "/etc/kubernetes/trivy-operator"
+
+trivy_operator_release_name: "trivy-operator"
+
+# Operator 副本数
+trivy_operator_replicas: 1
+
+# 扫描范围
+# 空字符串表示扫描所有 namespace
+trivy_operator_target_namespaces: ""
+
+# 排除平台系统 namespace，避免噪音过多
+trivy_operator_exclude_namespaces: "kube-system,kyverno,cert-manager,longhorn-system,local-path-storage,velero"
+
+# 扫描能力开关
+trivy_operator_vulnerability_scanner_enabled: true
+trivy_operator_config_audit_scanner_enabled: true
+trivy_operator_rbac_assessment_scanner_enabled: true
+trivy_operator_infra_assessment_scanner_enabled: true
+trivy_operator_exposed_secret_scanner_enabled: true
+trivy_operator_cluster_compliance_enabled: true
+trivy_operator_sbom_generation_enabled: true
+
+# 只扫当前 revision，减少重复报告
+trivy_operator_vulnerability_scan_only_current_revisions: true
+trivy_operator_config_audit_scan_only_current_revisions: true
+
+# 扫描 Job 并发
+trivy_operator_scan_jobs_concurrent_limit: 5
+trivy_operator_scan_job_timeout: "10m"
+trivy_operator_scan_job_ttl: "24h"
+
+# 报告保留时间
+trivy_operator_scanner_report_ttl: "72h"
+
+# Trivy 扫描配置
+trivy_severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
+trivy_ignore_unfixed: false
+trivy_timeout: "10m0s"
+
+# 国内环境如果拉 DB 慢，可以后续改 registry/mirror
+# 默认先用 chart 自带配置
+trivy_db_registry: ""
+trivy_java_db_registry: ""
+
+# Prometheus ServiceMonitor
+trivy_operator_service_monitor_enabled: true
+trivy_operator_service_monitor_namespace: "monitoring"
+
+trivy_operator_helm_timeout: "10m"

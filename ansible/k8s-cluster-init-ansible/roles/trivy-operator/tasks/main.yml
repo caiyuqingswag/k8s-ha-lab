@@ -1,0 +1,157 @@
+﻿---
+# =========================
+# Install Trivy Operator by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Trivy Operator working directory exists
+  ansible.builtin.file:
+    path: "{{ trivy_operator_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Trivy Operator Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ trivy_operator_chart_archive }}"
+    dest: "{{ trivy_operator_work_dir }}/{{ trivy_operator_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Trivy Operator values.yaml
+  ansible.builtin.template:
+    src: trivy-operator-values.yaml.j2
+    dest: "{{ trivy_operator_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Trivy Operator namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ trivy_operator_namespace }}"
+  register: trivy_operator_ns_create
+  failed_when:
+    - trivy_operator_ns_create.rc != 0
+    - "'AlreadyExists' not in trivy_operator_ns_create.stderr"
+  changed_when: trivy_operator_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Trivy Operator via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ trivy_operator_release_name }}"
+      - "{{ trivy_operator_work_dir }}/{{ trivy_operator_chart_archive }}"
+      - --namespace
+      - "{{ trivy_operator_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ trivy_operator_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ trivy_operator_helm_timeout }}"
+      - --wait
+  register: trivy_operator_helm_result
+  changed_when: "'has been upgraded' in trivy_operator_helm_result.stdout or 'has been installed' in trivy_operator_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Trivy Operator Helm result
+  ansible.builtin.debug:
+    msg: "{{ trivy_operator_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Trivy Operator deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ trivy_operator_namespace }}"
+      - rollout
+      - status
+      - deploy/trivy-operator
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Trivy Operator pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ trivy_operator_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: trivy_operator_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Trivy Operator pods
+  ansible.builtin.debug:
+    msg: "{{ trivy_operator_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Verify Trivy Operator CRDs
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - crd
+  register: trivy_operator_crds
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Trivy related CRDs
+  ansible.builtin.debug:
+    msg: "{{ trivy_operator_crds.stdout_lines | select('search', 'aquasecurity.github.io') | list }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show security reports
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - vulnerabilityreports,configauditreports,exposedsecretreports,rbacassessmentreports,infraassessmentreports
+      - -A
+  register: trivy_operator_reports
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print security reports
+  ansible.builtin.debug:
+    msg: "{{ trivy_operator_reports.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]

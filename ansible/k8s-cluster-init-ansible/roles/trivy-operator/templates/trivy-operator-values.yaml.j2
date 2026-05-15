@@ -1,0 +1,65 @@
+﻿# ===============================
+# Trivy Operator Helm values
+# ===============================
+
+targetNamespaces: "{{ trivy_operator_target_namespaces }}"
+excludeNamespaces: "{{ trivy_operator_exclude_namespaces }}"
+
+operator:
+  replicas: {{ trivy_operator_replicas }}
+  scanJobTTL: "{{ trivy_operator_scan_job_ttl }}"
+  scanJobTimeout: "{{ trivy_operator_scan_job_timeout }}"
+  scanJobsConcurrentLimit: {{ trivy_operator_scan_jobs_concurrent_limit }}
+
+  vulnerabilityScannerEnabled: {{ trivy_operator_vulnerability_scanner_enabled | bool | lower }}
+  configAuditScannerEnabled: {{ trivy_operator_config_audit_scanner_enabled | bool | lower }}
+  rbacAssessmentScannerEnabled: {{ trivy_operator_rbac_assessment_scanner_enabled | bool | lower }}
+  infraAssessmentScannerEnabled: {{ trivy_operator_infra_assessment_scanner_enabled | bool | lower }}
+  exposedSecretScannerEnabled: {{ trivy_operator_exposed_secret_scanner_enabled | bool | lower }}
+  clusterComplianceEnabled: {{ trivy_operator_cluster_compliance_enabled | bool | lower }}
+  sbomGenerationEnabled: {{ trivy_operator_sbom_generation_enabled | bool | lower }}
+
+  vulnerabilityScannerScanOnlyCurrentRevisions: {{ trivy_operator_vulnerability_scan_only_current_revisions | bool | lower }}
+  configAuditScannerScanOnlyCurrentRevisions: {{ trivy_operator_config_audit_scan_only_current_revisions | bool | lower }}
+
+  scannerReportTTL: "{{ trivy_operator_scanner_report_ttl }}"
+
+serviceMonitor:
+  enabled: {{ trivy_operator_service_monitor_enabled | bool | lower }}
+  namespace: "{{ trivy_operator_service_monitor_namespace }}"
+  labels:
+    release: kube-prometheus-stack
+
+trivy:
+  mode: Standalone
+  severity: "{{ trivy_severity }}"
+  timeout: "{{ trivy_timeout }}"
+  ignoreUnfixed: {{ trivy_ignore_unfixed | bool | lower }}
+
+{% if trivy_db_registry | length > 0 %}
+  dbRegistry: "{{ trivy_db_registry }}"
+{% endif %}
+{% if trivy_java_db_registry | length > 0 %}
+  javaDbRegistry: "{{ trivy_java_db_registry }}"
+{% endif %}
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+trivyOperator:
+  scanJobsInSameNamespace: false
+  scanJobCompressLogs: true
+  reportRecordFailedChecksOnly: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
