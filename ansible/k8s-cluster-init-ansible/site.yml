@@ -335,13 +335,14 @@
   tags:
     - velero
 
-- name: Configure APISIX UI routes
+
+- name: Configure APISIX internal routes
   hosts: all
   become: true
   roles:
-    - role: apisix-routes
+    - role: apisix-routes-internal
   tags:
-    - apisix-routes
+    - apisix-routes-internal
 
 
 - name: Deploy NFS server
