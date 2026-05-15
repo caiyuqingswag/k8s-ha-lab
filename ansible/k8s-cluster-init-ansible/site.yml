@@ -369,6 +369,13 @@
   tags:
     - kyverno-policies
 
+- name: Install Trivy Operator
+  hosts: all
+  become: true
+  roles:
+    - role: trivy-operator
+  tags:
+    - trivy-operator
 
 - name: Deploy NFS server
   hosts: nfs-server
