@@ -206,6 +206,14 @@
   tags:
     - longhorn
 
+- name: Install local-path-provisioner
+  hosts: all
+  become: true
+  roles:
+    - role: local-path
+  tags:
+    - local-path
+
 # =========================
 # Metrics Server
 # =========================

@@ -1,0 +1,16 @@
+﻿---
+local_path_namespace: "local-path-storage"
+local_path_work_dir: "/etc/kubernetes/local-path"
+
+local_path_storage_class: "local-path"
+local_path_default_class: true
+local_path_reclaim_policy: "Retain"
+local_path_volume_binding_mode: "WaitForFirstConsumer"
+
+local_path_node_path: "/data/local-path-provisioner"
+
+local_path_image: "rancher/local-path-provisioner:v0.0.36"
+
+local_path_helper_image: "busybox:1.36"
+
+local_path_config_name: "local-path-config"

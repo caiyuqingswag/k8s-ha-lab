@@ -1,0 +1,65 @@
+﻿---
+# =========================
+# Install local-path-provisioner
+# =========================
+
+- name: Ensure local path directory exists on all nodes
+  ansible.builtin.file:
+    path: "{{ local_path_node_path }}"
+    state: directory
+    mode: "0777"
+
+- name: Ensure local-path work dir exists
+  ansible.builtin.file:
+    path: "{{ local_path_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render local-path manifest
+  ansible.builtin.template:
+    src: local-path.yaml.j2
+    dest: "{{ local_path_work_dir }}/local-path.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply local-path provisioner
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ local_path_work_dir }}/local-path.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for local-path provisioner
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ local_path_namespace }}"
+      - rollout
+      - status
+      - deploy/local-path-provisioner
+      - --timeout=5m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show StorageClasses
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - storageclass
+  register: local_path_sc
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print StorageClasses
+  ansible.builtin.debug:
+    msg: "{{ local_path_sc.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

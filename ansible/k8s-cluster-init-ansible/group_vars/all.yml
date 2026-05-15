@@ -18,9 +18,9 @@ control_plane_endpoint: "prod-hz-01-api:6443"
 
 # =========================
 # Global storage class
-# 不同环境只改这里
+# 不同环境只改这里longhorn  /  local-path
 # =========================
-global_storage_class: "longhorn"
+global_storage_class: "local-path"
 
 
 # =========================
