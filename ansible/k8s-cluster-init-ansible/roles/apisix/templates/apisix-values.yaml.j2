@@ -1,25 +1,33 @@
 ﻿# ===============================
 # Apache APISIX Helm values
+# For apisix chart 2.14.x
 # Supports public/internal gateway
 # ===============================
 
-gateway:
+service:
   type: {{ apisix_gateway_type }}
 
   http:
     enabled: true
+    servicePort: 80
+    containerPort: 9080
+{% if apisix_gateway_type == "NodePort" %}
+    nodePort: {{ apisix_gateway_http_nodeport }}
+{% endif %}
 
   tls:
-    enabled: true
-
+    servicePort: 443
 {% if apisix_gateway_type == "NodePort" %}
-  nodePort:
-    http: {{ apisix_gateway_http_nodeport }}
-    tls: {{ apisix_gateway_https_nodeport }}
+    nodePort: {{ apisix_gateway_https_nodeport }}
 {% endif %}
+
+apisix:
+  ssl:
+    enabled: false
 
 admin:
   enabled: true
+  type: ClusterIP
   credentials:
     admin: "{{ apisix_admin_key }}"
 
@@ -28,7 +36,8 @@ ingress-controller:
 
   config:
     kubernetes:
-      ingress_class: "{{ apisix_ingress_class_name }}"
+      ingressClass: "{{ apisix_ingress_class_name }}"
+      defaultIngressClass: false
 
   apisix:
     adminService:
