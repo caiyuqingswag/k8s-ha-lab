@@ -1,0 +1,106 @@
+﻿{% for ns in network_policy_target_namespaces %}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: {{ ns }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+{% if network_policy_allow_same_namespace | bool %}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: {{ ns }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+{% endif %}
+
+{% if network_policy_allow_gateway_ingress | bool %}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-apisix-gateways
+  namespace: {{ ns }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+{% for gateway_ns in network_policy_gateway_namespaces %}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ gateway_ns }}
+{% endfor %}
+{% endif %}
+
+{% if network_policy_allow_monitoring_ingress | bool %}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-monitoring
+  namespace: {{ ns }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ network_policy_monitoring_namespace }}
+{% endif %}
+
+{% if network_policy_enable_egress_baseline | bool %}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: {{ ns }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: {{ ns }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ network_policy_dns_namespace }}
+          podSelector:
+            matchLabels:
+{% for k, v in network_policy_dns_pod_selector.items() %}
+              {{ k }}: {{ v }}
+{% endfor %}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{% endif %}
+
+{% endfor %}

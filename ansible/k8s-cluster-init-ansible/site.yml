@@ -377,6 +377,14 @@
   tags:
     - trivy-operator
 
+- name: Configure baseline NetworkPolicies
+  hosts: all
+  become: true
+  roles:
+    - role: network-policies
+  tags:
+    - network-policies
+
 - name: Deploy NFS server
   hosts: nfs-server
   become: true
