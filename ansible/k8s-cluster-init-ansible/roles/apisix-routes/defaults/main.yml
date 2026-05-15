@@ -1,0 +1,36 @@
+﻿---
+apisix_routes_work_dir: "/etc/kubernetes/apisix-routes"
+
+apisix_ingress_class_name: "apisix"
+
+apisix_ui_routes:
+  - name: grafana-route
+    namespace: monitoring
+    host: grafana.itexcloud.com
+    serviceName: grafana
+    servicePort: 80
+
+  - name: argocd-route
+    namespace: argocd
+    host: argocd.itexcloud.com
+    serviceName: argocd-server
+    servicePort: 80
+
+  - name: prometheus-route
+    namespace: monitoring
+    host: prometheus.itexcloud.com
+    serviceName: kube-prometheus-stack-prometheus
+    servicePort: 9090
+
+  - name: alertmanager-route
+    namespace: monitoring
+    host: alertmanager.itexcloud.com
+    serviceName: kube-prometheus-stack-alertmanager
+    servicePort: 9093
+
+  - name: longhorn-route
+    namespace: longhorn-system
+    host: longhorn.itexcloud.com
+    serviceName: longhorn-frontend
+    servicePort: 80
+
