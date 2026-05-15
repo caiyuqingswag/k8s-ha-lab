@@ -17,17 +17,53 @@ metadata:
   name: local-path-provisioner-role
 rules:
   - apiGroups: [""]
-    resources: ["nodes", "persistentvolumeclaims", "configmaps", "pods", "pods/log"]
-    verbs: ["get", "list", "watch"]
+    resources:
+      - nodes
+      - persistentvolumeclaims
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+
   - apiGroups: [""]
-    resources: ["endpoints", "persistentvolumes", "persistentvolumeclaims", "events"]
-    verbs: ["*"]
+    resources:
+      - persistentvolumes
+      - persistentvolumeclaims
+      - events
+    verbs:
+      - "*"
+
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+
+  - apiGroups: [""]
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
   - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["create", "patch"]
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
