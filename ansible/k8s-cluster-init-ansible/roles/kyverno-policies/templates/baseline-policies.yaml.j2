@@ -1,0 +1,204 @@
+﻿# ===============================
+# Kyverno baseline policies
+# Default: Audit
+# ===============================
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+spec:
+  validationFailureAction: {{ kyverno_policy_validation_action }}
+  background: true
+  rules:
+    - name: privileged-containers
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+{% for ns in kyverno_policy_excluded_namespaces %}
+                - {{ ns }}
+{% endfor %}
+      validate:
+        message: "Privileged containers are not allowed."
+        pattern:
+          spec:
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): "false"
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-host-namespaces
+spec:
+  validationFailureAction: {{ kyverno_policy_validation_action }}
+  background: true
+  rules:
+    - name: host-namespaces
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+{% for ns in kyverno_policy_excluded_namespaces %}
+                - {{ ns }}
+{% endfor %}
+      validate:
+        message: "hostNetwork, hostPID, and hostIPC are not allowed."
+        pattern:
+          spec:
+            =(hostNetwork): "false"
+            =(hostPID): "false"
+            =(hostIPC): "false"
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-hostpath
+spec:
+  validationFailureAction: {{ kyverno_policy_validation_action }}
+  background: true
+  rules:
+    - name: hostpath-volumes
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+{% for ns in kyverno_policy_excluded_namespaces %}
+                - {{ ns }}
+{% endfor %}
+      validate:
+        message: "hostPath volumes are not allowed."
+        pattern:
+          spec:
+            =(volumes):
+              - X(hostPath): "null"
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-requests-limits
+spec:
+  validationFailureAction: {{ kyverno_policy_validation_action }}
+  background: true
+  rules:
+    - name: require-container-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+{% for ns in kyverno_policy_excluded_namespaces %}
+                - {{ ns }}
+{% endfor %}
+      validate:
+        message: "CPU and memory requests/limits are required."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+spec:
+  validationFailureAction: {{ kyverno_policy_validation_action }}
+  background: true
+  rules:
+    - name: require-image-tag-not-latest
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+{% for ns in kyverno_policy_excluded_namespaces %}
+                - {{ ns }}
+{% endfor %}
+      validate:
+        message: "Images must not use the latest tag."
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ '{{' }} element.image {{ '}}' }}"
+                    operator: Equals
+                    value: "*:latest"
+                  - key: "{{ '{{' }} element.image {{ '}}' }}"
+                    operator: NotEquals
+                    value: "*:*"
+
+{% if kyverno_restrict_registries_enabled | bool %}
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+spec:
+  validationFailureAction: {{ kyverno_policy_validation_action }}
+  background: true
+  rules:
+    - name: allowed-registries
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+{% for ns in kyverno_policy_excluded_namespaces %}
+                - {{ ns }}
+{% endfor %}
+      validate:
+        message: "Images must come from approved registries."
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                all:
+{% for registry in kyverno_allowed_registries %}
+                  - key: "{{ '{{' }} element.image {{ '}}' }}"
+                    operator: NotEquals
+                    value: "{{ registry }}"
+{% endfor %}
+{% endif %}

@@ -344,6 +344,31 @@
   tags:
     - apisix-routes-internal
 
+# =========================
+# Kyverno Policy Engine
+# =========================
+
+- name: Install Kyverno
+  hosts: all
+  become: true
+  roles:
+    - role: kyverno
+  tags:
+    - kyverno
+
+# =========================
+# Kyverno Baseline Policies
+# 默认 Audit，不拦截
+# =========================
+
+- name: Configure Kyverno baseline policies
+  hosts: all
+  become: true
+  roles:
+    - role: kyverno-policies
+  tags:
+    - kyverno-policies
+
 
 - name: Deploy NFS server
   hosts: nfs-server

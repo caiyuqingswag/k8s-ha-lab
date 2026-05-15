@@ -1,0 +1,58 @@
+﻿# ===============================
+# Kyverno Helm values
+# Chart 3.8.0 / App v1.18.0
+# ===============================
+
+installCRDs: true
+
+crds:
+  install: true
+
+admissionController:
+  replicas: {{ kyverno_admission_controller_replicas }}
+  image:
+    tag: "{{ kyverno_app_version }}"
+
+backgroundController:
+  replicas: {{ kyverno_background_controller_replicas }}
+  image:
+    tag: "{{ kyverno_app_version }}"
+
+cleanupController:
+  replicas: {{ kyverno_cleanup_controller_replicas }}
+  image:
+    tag: "{{ kyverno_app_version }}"
+
+reportsController:
+  replicas: {{ kyverno_reports_controller_replicas }}
+  image:
+    tag: "{{ kyverno_app_version }}"
+
+reportsServer:
+  enabled: {{ kyverno_reports_server_enabled | bool | lower }}
+  image:
+    tag: "{{ kyverno_app_version }}"
+
+test:
+  image:
+    tag: "{{ kyverno_app_version }}"
+
+features:
+  admissionReports:
+    enabled: true
+  aggregateReports:
+    enabled: true
+  backgroundScan:
+    enabled: true
+  policyExceptions:
+    enabled: true
+
+config:
+  webhooks:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kyverno

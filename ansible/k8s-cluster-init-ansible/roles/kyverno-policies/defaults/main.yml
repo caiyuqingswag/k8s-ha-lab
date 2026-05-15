@@ -1,0 +1,28 @@
+﻿---
+kyverno_policies_work_dir: "/etc/kubernetes/kyverno-policies"
+
+# 先 Audit，别一上来 Enforce
+kyverno_policy_validation_action: "Audit"
+
+# 排除平台系统命名空间
+kyverno_policy_excluded_namespaces:
+  - kube-system
+  - kyverno
+  - cert-manager
+  - longhorn-system
+  - local-path-storage
+  - monitoring
+  - logging
+  - argocd
+  - gateway-public
+  - gateway-internal
+  - velero
+
+# 生产后可以收紧镜像仓库
+kyverno_restrict_registries_enabled: false
+kyverno_allowed_registries:
+  - "harbor.itexcloud.com/*"
+  - "registry.cn-hangzhou.aliyuncs.com/*"
+  - "quay.io/*"
+  - "ghcr.io/*"
+  - "docker.io/*"

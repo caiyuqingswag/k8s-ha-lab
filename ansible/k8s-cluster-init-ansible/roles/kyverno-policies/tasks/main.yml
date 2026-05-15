@@ -1,0 +1,64 @@
+﻿---
+# =========================
+# Apply Kyverno baseline policies
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Kyverno policies working directory exists
+  ansible.builtin.file:
+    path: "{{ kyverno_policies_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Kyverno baseline policies
+  ansible.builtin.template:
+    src: baseline-policies.yaml.j2
+    dest: "{{ kyverno_policies_work_dir }}/baseline-policies.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check Kyverno CRD exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - crd
+      - clusterpolicies.kyverno.io
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Kyverno baseline policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ kyverno_policies_work_dir }}/baseline-policies.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Kyverno ClusterPolicies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - clusterpolicy
+  register: kyverno_clusterpolicies
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Kyverno ClusterPolicies
+  ansible.builtin.debug:
+    msg: "{{ kyverno_clusterpolicies.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
