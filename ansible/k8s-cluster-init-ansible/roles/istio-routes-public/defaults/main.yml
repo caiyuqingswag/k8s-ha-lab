@@ -1,0 +1,26 @@
+﻿---
+istio_routes_public_work_dir: "/etc/kubernetes/istio-routes-public"
+
+istio_public_gateway_namespace: "istio-ingress-public"
+istio_public_gateway_name: "public-gateway"
+istio_public_gateway_selector:
+  istio: ingressgateway-public
+
+istio_public_routes:
+  - name: decision-prod-route
+    namespace: prod-paas-components
+    host: decision.itexcloud.com
+    serviceHost: decision-flow-web.prod-paas-components.svc.cluster.local
+    servicePort: 80
+
+  - name: order-prod-route
+    namespace: prod-itex-servers
+    host: order.itexcloud.com
+    serviceHost: order-api.prod-itex-servers.svc.cluster.local
+    servicePort: 80
+
+  - name: user-prod-route
+    namespace: prod-itex-servers
+    host: user.itexcloud.com
+    serviceHost: user-api.prod-itex-servers.svc.cluster.local
+    servicePort: 80

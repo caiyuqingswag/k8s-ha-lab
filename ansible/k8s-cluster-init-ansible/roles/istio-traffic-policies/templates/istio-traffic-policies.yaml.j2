@@ -1,0 +1,91 @@
+﻿{% for policy in istio_traffic_policies %}
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ policy.name }}
+  namespace: {{ policy.namespace }}
+spec:
+  host: {{ policy.host }}
+{% if policy.resilience.enabled | default(false) %}
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: {{ policy.resilience.connectionPool.tcpMaxConnections }}
+      http:
+        http1MaxPendingRequests: {{ policy.resilience.connectionPool.http1MaxPendingRequests }}
+        maxRequestsPerConnection: {{ policy.resilience.connectionPool.maxRequestsPerConnection }}
+    outlierDetection:
+      consecutive5xxErrors: {{ policy.resilience.outlierDetection.consecutive5xxErrors }}
+      interval: {{ policy.resilience.outlierDetection.interval }}
+      baseEjectionTime: {{ policy.resilience.outlierDetection.baseEjectionTime }}
+      maxEjectionPercent: {{ policy.resilience.outlierDetection.maxEjectionPercent }}
+{% endif %}
+{% if policy.subsets is defined and policy.subsets | length > 0 %}
+  subsets:
+{% for subset in policy.subsets %}
+    - name: {{ subset.name }}
+      labels:
+{% for k, v in subset.labels.items() %}
+        {{ k }}: {{ v }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{% if policy.canary.enabled | default(false) %}
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ policy.name }}-canary
+  namespace: {{ policy.namespace }}
+spec:
+  hosts:
+    - {{ policy.canary.gatewayHost }}
+  gateways:
+    - {{ policy.canary.gatewayRef }}
+  http:
+    - match:
+        - uri:
+            prefix: /
+{% if policy.resilience.enabled | default(false) %}
+      timeout: {{ policy.resilience.timeout }}
+      retries:
+        attempts: {{ policy.resilience.retries.attempts }}
+        perTryTimeout: {{ policy.resilience.retries.perTryTimeout }}
+        retryOn: {{ policy.resilience.retries.retryOn }}
+{% endif %}
+      route:
+{% for item in policy.canary.weights %}
+        - destination:
+            host: {{ policy.host }}
+            subset: {{ item.subset }}
+            port:
+              number: {{ policy.port }}
+          weight: {{ item.weight }}
+{% endfor %}
+{% endif %}
+
+{% if policy.resilience.enabled | default(false) %}
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ policy.name }}-service-resilience
+  namespace: {{ policy.namespace }}
+spec:
+  hosts:
+    - {{ policy.host }}
+  http:
+    - timeout: {{ policy.resilience.timeout }}
+      retries:
+        attempts: {{ policy.resilience.retries.attempts }}
+        perTryTimeout: {{ policy.resilience.retries.perTryTimeout }}
+        retryOn: {{ policy.resilience.retries.retryOn }}
+      route:
+        - destination:
+            host: {{ policy.host }}
+            port:
+              number: {{ policy.port }}
+{% endif %}
+{% endfor %}
