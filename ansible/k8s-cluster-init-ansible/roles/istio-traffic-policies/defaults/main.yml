@@ -43,3 +43,87 @@ istio_traffic_policies:
         interval: 10s
         baseEjectionTime: 30s
         maxEjectionPercent: 50
+
+  - name: order-api
+    namespace: prod-itex-servers
+    host: order-api.prod-itex-servers.svc.cluster.local
+    port: 80
+
+    subsets:
+      - name: v1
+        labels:
+          version: v1
+      - name: v2
+        labels:
+          version: v2
+
+    canary:
+      enabled: true
+      gatewayHost: order.itexcloud.com
+      gatewayRef: istio-ingress-public/public-gateway
+      weights:
+        - subset: v1
+          weight: 95
+        - subset: v2
+          weight: 5
+
+    resilience:
+      enabled: true
+      timeout: 2s
+      retries:
+        attempts: 2
+        perTryTimeout: 800ms
+        retryOn: 5xx,connect-failure,refused-stream
+
+      connectionPool:
+        tcpMaxConnections: 200
+        http1MaxPendingRequests: 200
+        maxRequestsPerConnection: 20
+
+      outlierDetection:
+        consecutive5xxErrors: 5
+        interval: 10s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 30
+
+  - name: user-api
+    namespace: prod-itex-servers
+    host: user-api.prod-itex-servers.svc.cluster.local
+    port: 80
+
+    subsets:
+      - name: v1
+        labels:
+          version: v1
+      - name: v2
+        labels:
+          version: v2
+
+    canary:
+      enabled: true
+      gatewayHost: user.itexcloud.com
+      gatewayRef: istio-ingress-public/public-gateway
+      weights:
+        - subset: v1
+          weight: 80
+        - subset: v2
+          weight: 20
+
+    resilience:
+      enabled: true
+      timeout: 5s
+      retries:
+        attempts: 3
+        perTryTimeout: 1500ms
+        retryOn: 5xx,connect-failure,refused-stream
+
+      connectionPool:
+        tcpMaxConnections: 300
+        http1MaxPendingRequests: 300
+        maxRequestsPerConnection: 50
+
+      outlierDetection:
+        consecutive5xxErrors: 7
+        interval: 10s
+        baseEjectionTime: 60s
+        maxEjectionPercent: 50
