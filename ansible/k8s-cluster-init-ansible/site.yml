@@ -286,6 +286,14 @@
     - apisix-internal
     - gateway
 
+- name: Install Istio service mesh
+  hosts: all
+  become: true
+  roles:
+    - role: istio
+  tags:
+    - istio
+
 - name: Install Argo CD
   hosts: all
   become: true

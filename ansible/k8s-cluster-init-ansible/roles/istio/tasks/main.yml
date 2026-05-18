@@ -1,0 +1,395 @@
+﻿---
+# =========================
+# Install Istio sidecar mode with public/internal gateways
+# Single cluster now, multi-cluster ready later
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Istio work directory exists
+  ansible.builtin.file:
+    path: "{{ istio_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Ensure Istio temp directory exists
+  ansible.builtin.file:
+    path: "{{ istio_tmp_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+# =========================
+# Copy offline packages
+# =========================
+
+- name: Copy Istio base chart
+  ansible.builtin.copy:
+    src: "{{ istio_base_chart_archive }}"
+    dest: "{{ istio_work_dir }}/{{ istio_base_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Istio istiod chart
+  ansible.builtin.copy:
+    src: "{{ istio_istiod_chart_archive }}"
+    dest: "{{ istio_work_dir }}/{{ istio_istiod_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Istio gateway chart
+  ansible.builtin.copy:
+    src: "{{ istio_gateway_chart_archive }}"
+    dest: "{{ istio_work_dir }}/{{ istio_gateway_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Istio CLI archive
+  ansible.builtin.copy:
+    src: "{{ istio_cli_archive }}"
+    dest: "{{ istio_tmp_dir }}/{{ istio_cli_archive }}"
+    mode: "0644"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_install_istioctl | bool
+
+# =========================
+# Install istioctl
+# =========================
+
+- name: Extract Istio CLI archive
+  ansible.builtin.unarchive:
+    src: "{{ istio_tmp_dir }}/{{ istio_cli_archive }}"
+    dest: "{{ istio_tmp_dir }}"
+    remote_src: true
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_install_istioctl | bool
+
+- name: Install istioctl
+  ansible.builtin.copy:
+    src: "{{ istio_tmp_dir }}/istio-{{ istio_version }}/bin/istioctl"
+    dest: "{{ istioctl_bin }}"
+    mode: "0755"
+    remote_src: true
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_install_istioctl | bool
+
+- name: Verify istioctl
+  ansible.builtin.command:
+    argv:
+      - "{{ istioctl_bin }}"
+      - version
+      - --remote=false
+  register: istioctl_version
+  changed_when: false
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_install_istioctl | bool
+
+# =========================
+# Render values
+# =========================
+
+- name: Render istiod values
+  ansible.builtin.template:
+    src: istiod-values.yaml.j2
+    dest: "{{ istio_work_dir }}/istiod-values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render public gateway values
+  ansible.builtin.template:
+    src: gateway-public-values.yaml.j2
+    dest: "{{ istio_work_dir }}/gateway-public-values.yaml"
+    mode: "0644"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_public_gateway_enabled | bool
+
+- name: Render internal gateway values
+  ansible.builtin.template:
+    src: gateway-internal-values.yaml.j2
+    dest: "{{ istio_work_dir }}/gateway-internal-values.yaml"
+    mode: "0644"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_internal_gateway_enabled | bool
+
+- name: Render east-west gateway values
+  ansible.builtin.template:
+    src: gateway-eastwest-values.yaml.j2
+    dest: "{{ istio_work_dir }}/gateway-eastwest-values.yaml"
+    mode: "0644"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_enable_eastwest_gateway | bool
+
+# =========================
+# Check API
+# =========================
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+# =========================
+# Create namespaces
+# =========================
+
+- name: Create Istio namespaces
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ item }}"
+  loop: >-
+    {{
+      [istio_system_namespace]
+      + ([istio_public_gateway_namespace] if istio_public_gateway_enabled | bool else [])
+      + ([istio_internal_gateway_namespace] if istio_internal_gateway_enabled | bool else [])
+      + ([istio_eastwest_gateway_namespace] if istio_enable_eastwest_gateway | bool else [])
+    }}
+  register: istio_ns_create
+  failed_when:
+    - istio_ns_create.rc != 0
+    - "'AlreadyExists' not in istio_ns_create.stderr"
+  changed_when: istio_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+# =========================
+# Install base / istiod
+# =========================
+
+- name: Install or upgrade Istio base
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - istio-base
+      - "{{ istio_work_dir }}/{{ istio_base_chart_archive }}"
+      - --namespace
+      - "{{ istio_system_namespace }}"
+      - --create-namespace
+      - --set
+      - defaultRevision=default
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ istio_helm_timeout }}"
+      - --wait
+  register: istio_base_helm_result
+  changed_when: "'has been upgraded' in istio_base_helm_result.stdout or 'has been installed' in istio_base_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade istiod
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - istiod
+      - "{{ istio_work_dir }}/{{ istio_istiod_chart_archive }}"
+      - --namespace
+      - "{{ istio_system_namespace }}"
+      - -f
+      - "{{ istio_work_dir }}/istiod-values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ istio_helm_timeout }}"
+      - --wait
+  register: istio_istiod_helm_result
+  changed_when: "'has been upgraded' in istio_istiod_helm_result.stdout or 'has been installed' in istio_istiod_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+# =========================
+# Install gateways
+# =========================
+
+- name: Install or upgrade public ingress gateway
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ istio_public_gateway_release_name }}"
+      - "{{ istio_work_dir }}/{{ istio_gateway_chart_archive }}"
+      - --namespace
+      - "{{ istio_public_gateway_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ istio_work_dir }}/gateway-public-values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ istio_helm_timeout }}"
+      - --wait
+  register: istio_public_gateway_helm_result
+  changed_when: "'has been upgraded' in istio_public_gateway_helm_result.stdout or 'has been installed' in istio_public_gateway_helm_result.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_public_gateway_enabled | bool
+
+- name: Install or upgrade internal ingress gateway
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ istio_internal_gateway_release_name }}"
+      - "{{ istio_work_dir }}/{{ istio_gateway_chart_archive }}"
+      - --namespace
+      - "{{ istio_internal_gateway_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ istio_work_dir }}/gateway-internal-values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ istio_helm_timeout }}"
+      - --wait
+  register: istio_internal_gateway_helm_result
+  changed_when: "'has been upgraded' in istio_internal_gateway_helm_result.stdout or 'has been installed' in istio_internal_gateway_helm_result.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_internal_gateway_enabled | bool
+
+- name: Install or upgrade east-west gateway
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ istio_eastwest_gateway_release_name }}"
+      - "{{ istio_work_dir }}/{{ istio_gateway_chart_archive }}"
+      - --namespace
+      - "{{ istio_eastwest_gateway_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ istio_work_dir }}/gateway-eastwest-values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ istio_helm_timeout }}"
+      - --wait
+  register: istio_eastwest_gateway_helm_result
+  changed_when: "'has been upgraded' in istio_eastwest_gateway_helm_result.stdout or 'has been installed' in istio_eastwest_gateway_helm_result.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_enable_eastwest_gateway | bool
+
+# =========================
+# Enable namespace injection
+# =========================
+
+- name: Enable Istio sidecar injection for workload namespaces
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - label
+      - namespace
+      - "{{ item }}"
+      - istio-injection=enabled
+      - --overwrite
+  loop: "{{ istio_injection_namespaces }}"
+  changed_when: false
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - istio_injection_namespaces | length > 0
+
+# =========================
+# Verify
+# =========================
+
+- name: Show Istio pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - pods
+      - -A
+      - -l
+      - app.kubernetes.io/part-of=istio
+      - -o
+      - wide
+  register: istio_pods
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Istio namespaces pods fallback
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - pods
+      - -n
+      - "{{ item }}"
+      - -o
+      - wide
+  loop: >-
+    {{
+      [istio_system_namespace]
+      + ([istio_public_gateway_namespace] if istio_public_gateway_enabled | bool else [])
+      + ([istio_internal_gateway_namespace] if istio_internal_gateway_enabled | bool else [])
+      + ([istio_eastwest_gateway_namespace] if istio_enable_eastwest_gateway | bool else [])
+    }}
+  register: istio_namespace_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Istio pods
+  ansible.builtin.debug:
+    msg: "{{ istio_namespace_pods.results | map(attribute='stdout_lines') | list }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Istio gateway services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - svc
+      - -n
+      - "{{ item }}"
+      - -o
+      - wide
+  loop: >-
+    {{
+      ([istio_public_gateway_namespace] if istio_public_gateway_enabled | bool else [])
+      + ([istio_internal_gateway_namespace] if istio_internal_gateway_enabled | bool else [])
+      + ([istio_eastwest_gateway_namespace] if istio_enable_eastwest_gateway | bool else [])
+    }}
+  register: istio_gateway_svcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Istio gateway services
+  ansible.builtin.debug:
+    msg: "{{ istio_gateway_svcs.results | map(attribute='stdout_lines') | list }}"
+  when: inventory_hostname == groups['masters'][0]

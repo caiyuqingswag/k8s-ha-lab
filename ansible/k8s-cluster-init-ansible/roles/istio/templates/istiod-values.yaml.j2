@@ -1,0 +1,35 @@
+﻿# ===============================
+# Istio istiod values
+# Sidecar mode control plane
+# ===============================
+
+global:
+  meshID: "{{ istio_mesh_id }}"
+  multiCluster:
+    clusterName: "{{ istio_cluster_name }}"
+  network: "{{ istio_network_name }}"
+  trustDomain: "{{ istio_trust_domain }}"
+
+pilot:
+  autoscaleEnabled: {{ istio_pilot_autoscale_enabled | bool | lower }}
+  autoscaleMin: {{ istio_pilot_autoscale_min }}
+  autoscaleMax: {{ istio_pilot_autoscale_max }}
+
+  resources:
+    requests:
+      cpu: "{{ istio_pilot_cpu_request }}"
+      memory: "{{ istio_pilot_memory_request }}"
+    limits:
+      cpu: "{{ istio_pilot_cpu_limit }}"
+      memory: "{{ istio_pilot_memory_limit }}"
+
+meshConfig:
+  accessLogFile: /dev/stdout
+  enableTracing: false
+
+  defaultConfig:
+    holdApplicationUntilProxyStarts: true
+
+    proxyMetadata:
+      ISTIO_META_DNS_CAPTURE: "true"
+      ISTIO_META_DNS_AUTO_ALLOCATE: "true"

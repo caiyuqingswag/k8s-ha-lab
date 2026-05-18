@@ -1,0 +1,42 @@
+﻿# ===============================
+# Istio internal ingress gateway
+# Internal / whitelist CLB -> NodePort 30081
+# ===============================
+
+name: istio-ingressgateway-internal
+
+labels:
+  app: istio-ingressgateway-internal
+  istio: ingressgateway-internal
+
+replicaCount: {{ istio_internal_gateway_replicas }}
+
+service:
+  type: NodePort
+
+  ports:
+    - name: status-port
+      port: 15021
+      targetPort: 15021
+      nodePort: {{ istio_internal_status_nodeport }}
+      protocol: TCP
+
+    - name: http2
+      port: 80
+      targetPort: 80
+      nodePort: {{ istio_internal_http_nodeport }}
+      protocol: TCP
+
+    - name: https
+      port: 443
+      targetPort: 443
+      nodePort: {{ istio_internal_https_nodeport }}
+      protocol: TCP
+
+resources:
+  requests:
+    cpu: "{{ istio_gateway_cpu_request }}"
+    memory: "{{ istio_gateway_memory_request }}"
+  limits:
+    cpu: "{{ istio_gateway_cpu_limit }}"
+    memory: "{{ istio_gateway_memory_limit }}"
