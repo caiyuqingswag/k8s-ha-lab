@@ -1,0 +1,142 @@
+﻿---
+# =========================
+# Install Sealed Secrets controller and kubeseal CLI
+# Run Kubernetes operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Sealed Secrets working directory exists
+  ansible.builtin.file:
+    path: "{{ sealed_secrets_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Sealed Secrets controller manifest to first master
+  ansible.builtin.copy:
+    src: "{{ sealed_secrets_controller_manifest }}"
+    dest: "{{ sealed_secrets_work_dir }}/controller.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Sealed Secrets controller
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ sealed_secrets_work_dir }}/controller.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Sealed Secrets controller deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ sealed_secrets_namespace }}"
+      - rollout
+      - status
+      - deploy/{{ sealed_secrets_controller_name }}
+      - --timeout=5m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Ensure kubeseal temp directory exists
+  ansible.builtin.file:
+    path: "{{ sealed_secrets_kubeseal_tmp_dir }}"
+    state: directory
+    mode: "0755"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - sealed_secrets_install_kubeseal | bool
+
+- name: Copy kubeseal archive to first master
+  ansible.builtin.copy:
+    src: "{{ sealed_secrets_kubeseal_archive }}"
+    dest: "{{ sealed_secrets_kubeseal_tmp_dir }}/{{ sealed_secrets_kubeseal_archive }}"
+    mode: "0644"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - sealed_secrets_install_kubeseal | bool
+
+- name: Extract kubeseal archive
+  ansible.builtin.unarchive:
+    src: "{{ sealed_secrets_kubeseal_tmp_dir }}/{{ sealed_secrets_kubeseal_archive }}"
+    dest: "{{ sealed_secrets_kubeseal_tmp_dir }}"
+    remote_src: true
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - sealed_secrets_install_kubeseal | bool
+
+- name: Install kubeseal binary
+  ansible.builtin.copy:
+    src: "{{ sealed_secrets_kubeseal_tmp_dir }}/kubeseal"
+    dest: "{{ sealed_secrets_kubeseal_bin }}"
+    mode: "0755"
+    remote_src: true
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - sealed_secrets_install_kubeseal | bool
+
+- name: Verify kubeseal
+  ansible.builtin.command:
+    argv:
+      - "{{ sealed_secrets_kubeseal_bin }}"
+      - --version
+  register: kubeseal_version
+  changed_when: false
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - sealed_secrets_install_kubeseal | bool
+
+- name: Print kubeseal version
+  ansible.builtin.debug:
+    msg: "{{ kubeseal_version.stdout_lines | default([]) }}"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - sealed_secrets_install_kubeseal | bool
+
+- name: Show Sealed Secrets pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ sealed_secrets_namespace }}"
+      - get
+      - pods
+      - -l
+      - name={{ sealed_secrets_controller_name }}
+      - -o
+      - wide
+  register: sealed_secrets_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Sealed Secrets pods
+  ansible.builtin.debug:
+    msg: "{{ sealed_secrets_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

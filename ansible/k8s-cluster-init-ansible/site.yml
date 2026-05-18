@@ -385,6 +385,15 @@
   tags:
     - network-policies
 
+
+- name: Install Sealed Secrets
+  hosts: all
+  become: true
+  roles:
+    - role: sealed-secrets
+  tags:
+    - sealed-secrets
+
 - name: Deploy NFS server
   hosts: nfs-server
   become: true
