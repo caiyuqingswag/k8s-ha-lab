@@ -294,6 +294,50 @@
   tags:
     - istio
 
+# =========================
+# Istio Internal Routes
+# 内部平台 Web UI 入口
+# =========================
+
+- name: Configure Istio internal routes
+  hosts: all
+  become: true
+  roles:
+    - role: istio-routes-internal
+      tags:
+        - istio-routes-internal
+  tags:
+    - istio-routes-internal
+
+# =========================
+# Istio Public Routes
+# 公网业务入口
+# =========================
+
+- name: Configure Istio public routes
+  hosts: all
+  become: true
+  roles:
+    - role: istio-routes-public
+      tags:
+        - istio-routes-public
+  tags:
+    - istio-routes-public
+
+# =========================
+# Istio Traffic Policies
+# 灰度 / 重试 / 超时 / 熔断
+# =========================
+
+- name: Configure Istio traffic policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-traffic-policies
+  tags:
+    - istio-traffic-policies
+
+
 - name: Install Argo CD
   hosts: all
   become: true
