@@ -1,0 +1,95 @@
+﻿---
+# =========================
+# Istio Global Rate Limit
+# Envoy RateLimit Service + Redis
+# =========================
+
+istio_global_ratelimit_enabled: true
+
+istio_global_ratelimit_namespace: "istio-ratelimit"
+istio_global_ratelimit_work_dir: "/etc/kubernetes/istio-global-ratelimit"
+
+# =========================
+# Redis
+# 生产建议后续换外部 Redis / Redis Cluster
+# =========================
+
+istio_global_ratelimit_redis_enabled: true
+istio_global_ratelimit_redis_name: "ratelimit-redis"
+istio_global_ratelimit_redis_image: "redis:7.2-alpine"
+istio_global_ratelimit_redis_port: 6379
+
+# =========================
+# Ratelimit service
+# =========================
+
+istio_global_ratelimit_service_name: "ratelimit"
+istio_global_ratelimit_image: "envoyproxy/ratelimit:v1.5.0"
+
+istio_global_ratelimit_grpc_port: 8081
+istio_global_ratelimit_http_port: 8080
+istio_global_ratelimit_replicas: 2
+
+istio_global_ratelimit_log_level: "debug"
+istio_global_ratelimit_failure_mode_deny: false
+istio_global_ratelimit_timeout: "0.25s"
+
+# =========================
+# Global rate limit policies
+#
+# context:
+#   GATEWAY         = 网关入口限流
+#   SIDECAR_INBOUND = 服务入口限流
+#
+# descriptorValue:
+#   会写入 ratelimit config 和 EnvoyFilter
+#
+# unit:
+#   SECOND / MINUTE / HOUR / DAY
+# =========================
+
+istio_global_ratelimit_policies:
+
+  # 公网入口全局限流
+  # 所有 istio-ingressgateway-public 副本共享 3000 QPS
+  - name: public-gateway-global-ratelimit
+    namespace: istio-ingress-public
+    context: GATEWAY
+    workloadSelector:
+      istio: ingressgateway-public
+    portNumber: 80
+    domain: public-gateway
+    descriptorValue: public-gateway
+    requestsPerUnit: 3000
+    unit: SECOND
+    statPrefix: public_gateway_global_ratelimit
+
+  # 内部入口全局限流
+  # 所有 istio-ingressgateway-internal 副本共享 1000 QPS
+  - name: internal-gateway-global-ratelimit
+    namespace: istio-ingress-internal
+    context: GATEWAY
+    workloadSelector:
+      istio: ingressgateway-internal
+    portNumber: 80
+    domain: internal-gateway
+    descriptorValue: internal-gateway
+    requestsPerUnit: 1000
+    unit: SECOND
+    statPrefix: internal_gateway_global_ratelimit
+
+  # order-api 服务级全局限流
+  # 所有 order-api Pod 共享 1000 QPS
+  # 初期可以 enabled: false，稳定后再打开
+  - name: order-api-global-ratelimit
+    enabled: false
+    namespace: prod-itex-servers
+    context: SIDECAR_INBOUND
+    workloadSelector:
+      app: order-api
+    portNumber: 80
+    domain: order-api
+    descriptorValue: order-api
+    requestsPerUnit: 1000
+    unit: SECOND
+    statPrefix: order_api_global_ratelimit

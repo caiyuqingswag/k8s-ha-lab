@@ -359,6 +359,19 @@
     - istio-rate-limit-policies
 
 # =========================
+# Istio Global Rate Limit
+# 全局限流：ratelimit service + Redis
+# =========================
+
+- name: Configure Istio global rate limit
+  hosts: all
+  become: true
+  roles:
+    - role: istio-global-ratelimit
+  tags:
+    - istio-global-ratelimit
+
+# =========================
 # Istio Authorization Policies
 # 服务间访问控制
 # =========================
