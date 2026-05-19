@@ -1,4 +1,4 @@
-# 6. 执行
+# 执行
 
 ```bash
 ansible-playbook -i inventory.ini site.yml --tags istio-global-ratelimit
@@ -19,33 +19,7 @@ cat /etc/kubernetes/istio-global-ratelimit/global-ratelimit.yaml
 
 ---
 
-# 7. 使用说明 MD
-
-````powershell
-@'
-# Istio Global Rate Limit 使用说明
-
-## 1. 这是什么？
-
-`istio-global-ratelimit` 是基于 Istio EnvoyFilter + Envoy RateLimit Service + Redis 的全局限流方案。
-
-流量路径：
-
-```text
-Client
-  -> Istio IngressGateway / Sidecar Envoy
-  -> Envoy RateLimit Filter
-  -> ratelimit service
-  -> Redis
-````
-
-如果超过限流阈值，Envoy 返回：
-
-```text
-HTTP 429 Too Many Requests
-```
-
-## 2. 和本地限流的区别
+## 和本地限流的区别
 
 ### 本地限流 Local Rate Limit
 
@@ -71,7 +45,7 @@ gateway 有 3 个副本
 整体就是 1000 QPS
 ```
 
-## 3. 中大厂怎么用？
+## 怎么用？
 
 常见是两层一起用：
 
@@ -298,7 +272,7 @@ unit: MINUTE
 每分钟 10000 次
 ```
 
-## 7. 如何新增一个服务级全局限流？
+## 如何新增一个服务级全局限流？
 
 例如给 `user-api` 设置全局 2000 QPS：
 
@@ -322,7 +296,7 @@ unit: MINUTE
 ansible-playbook -i inventory.ini site.yml --tags istio-global-ratelimit
 ```
 
-## 8. 如何禁用某条策略？
+## 如何禁用某条策略？
 
 加：
 
@@ -388,7 +362,7 @@ done
 429
 ```
 
-## 10. 如何确认 Envoy 配置下发？
+## 如何确认 Envoy 配置下发？
 
 查 gateway pod：
 
@@ -417,7 +391,7 @@ portNumber 不对
 EnvoyFilter 没有应用到正确 namespace
 ```
 
-## 11. 当前模板的限制
+## 当前模板的限制
 
 当前模板是通用兜底限流：
 
@@ -437,7 +411,7 @@ EnvoyFilter 没有应用到正确 namespace
 
 这些可以继续增强 EnvoyFilter 的 `rate_limits.actions`。
 
-## 12. 按路径 / Header 限流怎么做？
+## 按路径 / Header 限流怎么做？
 
 后续可以扩展成：
 
@@ -466,7 +440,7 @@ x-forwarded-for
 
 这类策略建议单独做更细的模板，不要和当前基础版混太复杂。
 
-## 13. 生产建议
+## 生产建议
 
 当前 Redis 是单副本，适合测试和初期。
 
@@ -510,7 +484,7 @@ istio_global_ratelimit_failure_mode_deny: true
 
 安全性更高，但风险也更大。
 
-## 14. 推荐上线顺序
+## 上线顺序
 
 ```text
 1. 先部署 ratelimit service + Redis
@@ -521,7 +495,7 @@ istio_global_ratelimit_failure_mode_deny: true
 6. 最后再做按用户/IP/API Key/路径的细粒度限流
 ```
 
-## 15. 和本地限流怎么搭配？
+## 和本地限流怎么搭配？
 
 推荐：
 
@@ -546,13 +520,9 @@ Gateway 全局限流：
 本地限流做单点保护
 ```
 
-'@ | Set-Content -Encoding UTF8 "roles/istio-global-ratelimit/docs/USAGE.md"
-
-````
-
 ---
 
-# 8. 重要提醒
+# 重要
 
 这套是**基础全局限流**，先做：
 
