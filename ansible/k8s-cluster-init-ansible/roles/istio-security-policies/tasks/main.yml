@@ -1,0 +1,49 @@
+﻿---
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Istio security policies working directory exists
+  ansible.builtin.file:
+    path: "{{ istio_security_policies_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Istio security policies
+  ansible.builtin.template:
+    src: security-policies.yaml.j2
+    dest: "{{ istio_security_policies_work_dir }}/security-policies.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Istio security policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ istio_security_policies_work_dir }}/security-policies.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Istio security policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - peerauthentication,authorizationpolicy
+      - -A
+  register: istio_security_result
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Istio security policies
+  ansible.builtin.debug:
+    msg: "{{ istio_security_result.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

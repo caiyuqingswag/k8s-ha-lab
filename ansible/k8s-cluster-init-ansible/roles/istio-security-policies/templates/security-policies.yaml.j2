@@ -1,0 +1,41 @@
+﻿# ===============================
+# Istio Security Policies
+# mTLS / AuthorizationPolicy
+# ===============================
+
+{% for item in istio_mtls_policies %}
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: {{ item.name }}
+  namespace: {{ item.namespace }}
+spec:
+  mtls:
+    mode: {{ item.mode }}
+{% endfor %}
+
+{% if istio_authorization_policies_enabled | bool %}
+{% for item in istio_authorization_policies %}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ item.name }}
+  namespace: {{ item.namespace }}
+spec:
+  selector:
+    matchLabels:
+{% for k, v in item.selector.items() %}
+      {{ k }}: {{ v }}
+{% endfor %}
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces:
+{% for ns in item.allowedNamespaces %}
+              - {{ ns }}
+{% endfor %}
+{% endfor %}
+{% endif %}

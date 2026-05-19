@@ -337,6 +337,26 @@
   tags:
     - istio-traffic-policies
 
+- name: Configure Istio security policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-security-policies
+  tags:
+    - istio-security-policies
+
+# =========================
+# Istio Rate Limit Policies
+# Envoy local rate limit
+# =========================
+
+- name: Configure Istio rate limit policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-rate-limit-policies
+  tags:
+    - istio-rate-limit-policies
 
 - name: Install Argo CD
   hosts: all

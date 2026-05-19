@@ -1,0 +1,60 @@
+﻿---
+istio_security_policies_work_dir: "/etc/kubernetes/istio-security-policies"
+
+# =========================
+# mTLS 加密策略
+# =========================
+# PERMISSIVE: 兼容明文 + mTLS，适合过渡期
+# STRICT: 只允许 mTLS，适合确认所有调用方都注入 sidecar 后开启
+istio_mtls_policies:
+  - name: prod-itex-servers-mtls
+    namespace: prod-itex-servers
+    mode: PERMISSIVE
+
+  - name: prod-paas-components-mtls
+    namespace: prod-paas-components
+    mode: PERMISSIVE
+
+  - name: prod-itex-components-mtls
+    namespace: prod-itex-components
+    mode: PERMISSIVE
+
+  - name: prod-srm-components-mtls
+    namespace: prod-srm-components
+    mode: PERMISSIVE
+
+  - name: stable-itex-components-mtls
+    namespace: stable-itex-components
+    mode: PERMISSIVE
+
+  - name: stable-itex-servers-mtls
+    namespace: stable-itex-servers
+    mode: PERMISSIVE
+
+# =========================
+# 服务间授权策略
+# =========================
+# enabled=false 时不会生成 AuthorizationPolicy
+# 建议先只开 mTLS PERMISSIVE，等调用链确认后再开启授权
+istio_authorization_policies_enabled: false
+
+istio_authorization_policies:
+  - name: allow-order-api-from-prod-paas
+    namespace: prod-itex-servers
+
+    # 被保护的目标服务 Pod label
+    selector:
+      app: order-api
+
+    # 允许哪些 namespace 访问
+    allowedNamespaces:
+      - prod-paas-components
+      - prod-itex-servers
+
+  - name: allow-user-api-from-prod-paas
+    namespace: prod-itex-servers
+    selector:
+      app: user-api
+    allowedNamespaces:
+      - prod-paas-components
+      - prod-itex-servers
