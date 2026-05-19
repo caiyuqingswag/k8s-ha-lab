@@ -1,7 +1,6 @@
 ﻿---
 # =========================
-# Apply Istio security policies
-# mTLS encryption
+# Apply Istio AuthorizationPolicy
 # Run from first master only
 # =========================
 
@@ -12,72 +11,55 @@
       - groups['masters'] | length > 0
     fail_msg: "masters group is required."
 
-- name: Ensure Istio security policies working directory exists
+- name: Ensure Istio authz policies working directory exists
   ansible.builtin.file:
-    path: "{{ istio_security_policies_work_dir }}"
+    path: "{{ istio_authz_policies_work_dir }}"
     state: directory
     mode: "0755"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Render Istio mTLS policies
+- name: Render Istio AuthorizationPolicies
   ansible.builtin.template:
-    src: mtls-policies.yaml.j2
-    dest: "{{ istio_security_policies_work_dir }}/mtls-policies.yaml"
+    src: authorization-policies.yaml.j2
+    dest: "{{ istio_authz_policies_work_dir }}/authorization-policies.yaml"
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Check Istio CRDs exist
+- name: Check AuthorizationPolicy CRD exists
   ansible.builtin.command:
     argv:
       - kubectl
       - --kubeconfig=/etc/kubernetes/admin.conf
       - get
       - crd
-      - peerauthentications.security.istio.io
+      - authorizationpolicies.security.istio.io
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Apply Istio mTLS policies
+- name: Apply Istio AuthorizationPolicies
   ansible.builtin.command:
     argv:
       - kubectl
       - --kubeconfig=/etc/kubernetes/admin.conf
       - apply
       - -f
-      - "{{ istio_security_policies_work_dir }}/mtls-policies.yaml"
+      - "{{ istio_authz_policies_work_dir }}/authorization-policies.yaml"
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Show PeerAuthentication
+- name: Show Istio AuthorizationPolicies
   ansible.builtin.command:
     argv:
       - kubectl
       - --kubeconfig=/etc/kubernetes/admin.conf
       - get
-      - peerauthentication
+      - authorizationpolicy
       - -A
-  register: istio_peerauthentication_result
+  register: istio_authz_policies_result
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
 
-- name: Print PeerAuthentication
+- name: Print Istio AuthorizationPolicies
   ansible.builtin.debug:
-    msg: "{{ istio_peerauthentication_result.stdout_lines }}"
-  when: inventory_hostname == groups['masters'][0]
-
-- name: Show mTLS DestinationRules
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - --kubeconfig=/etc/kubernetes/admin.conf
-      - get
-      - destinationrule
-      - -A
-  register: istio_mtls_destinationrule_result
-  changed_when: false
-  when: inventory_hostname == groups['masters'][0]
-
-- name: Print mTLS DestinationRules
-  ansible.builtin.debug:
-    msg: "{{ istio_mtls_destinationrule_result.stdout_lines }}"
+    msg: "{{ istio_authz_policies_result.stdout_lines }}"
   when: inventory_hostname == groups['masters'][0]

@@ -1,60 +1,48 @@
 ﻿---
+# =========================
+# Istio Security Policies
+# mTLS encryption policies
+# =========================
+
 istio_security_policies_work_dir: "/etc/kubernetes/istio-security-policies"
 
-# =========================
-# mTLS 加密策略
-# =========================
-# PERMISSIVE: 兼容明文 + mTLS，适合过渡期
-# STRICT: 只允许 mTLS，适合确认所有调用方都注入 sidecar 后开启
-istio_mtls_policies:
-  - name: prod-itex-servers-mtls
-    namespace: prod-itex-servers
-    mode: PERMISSIVE
+# 默认先 PERMISSIVE，确认所有调用方都注入 sidecar 后再改 STRICT
+# PERMISSIVE: 同时接受明文和 mTLS
+# STRICT: 只接受 mTLS
+istio_mtls_mode: "PERMISSIVE"
 
-  - name: prod-paas-components-mtls
+# 开启 mTLS 的 namespace
+istio_mtls_namespaces:
+  - prod-itex-components
+  - prod-itex-servers
+  - prod-paas-components
+  - prod-srm-components
+  - stable-itex-components
+  - stable-itex-servers
+
+# 是否启用 mesh 全局 mTLS
+# 初期建议 false，不要全局一刀切
+istio_enable_mesh_wide_mtls: false
+
+# mesh 全局 mTLS 模式
+# 只有 istio_enable_mesh_wide_mtls=true 时才生效
+istio_mesh_mtls_mode: "PERMISSIVE"
+
+# 是否生成 DestinationRule ISTIO_MUTUAL
+# 一般启用，显式告诉客户端 sidecar 使用 Istio mTLS
+istio_enable_destination_rules: true
+
+# 需要生成 DestinationRule 的服务
+# 后续可以按服务慢慢加，不一定一开始全加
+istio_mtls_destination_rules:
+  - name: decision-flow-web
     namespace: prod-paas-components
-    mode: PERMISSIVE
+    host: decision-flow-web.prod-paas-components.svc.cluster.local
 
-  - name: prod-itex-components-mtls
-    namespace: prod-itex-components
-    mode: PERMISSIVE
-
-  - name: prod-srm-components-mtls
-    namespace: prod-srm-components
-    mode: PERMISSIVE
-
-  - name: stable-itex-components-mtls
-    namespace: stable-itex-components
-    mode: PERMISSIVE
-
-  - name: stable-itex-servers-mtls
-    namespace: stable-itex-servers
-    mode: PERMISSIVE
-
-# =========================
-# 服务间授权策略
-# =========================
-# enabled=false 时不会生成 AuthorizationPolicy
-# 建议先只开 mTLS PERMISSIVE，等调用链确认后再开启授权
-istio_authorization_policies_enabled: false
-
-istio_authorization_policies:
-  - name: allow-order-api-from-prod-paas
+  - name: order-api
     namespace: prod-itex-servers
+    host: order-api.prod-itex-servers.svc.cluster.local
 
-    # 被保护的目标服务 Pod label
-    selector:
-      app: order-api
-
-    # 允许哪些 namespace 访问
-    allowedNamespaces:
-      - prod-paas-components
-      - prod-itex-servers
-
-  - name: allow-user-api-from-prod-paas
+  - name: user-api
     namespace: prod-itex-servers
-    selector:
-      app: user-api
-    allowedNamespaces:
-      - prod-paas-components
-      - prod-itex-servers
+    host: user-api.prod-itex-servers.svc.cluster.local

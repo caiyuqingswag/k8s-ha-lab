@@ -358,6 +358,20 @@
   tags:
     - istio-rate-limit-policies
 
+# =========================
+# Istio Authorization Policies
+# 服务间访问控制
+# =========================
+
+- name: Configure Istio authorization policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-authz-policies
+  tags:
+    - istio-authz-policies
+
+
 - name: Install Argo CD
   hosts: all
   become: true

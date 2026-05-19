@@ -1,0 +1,51 @@
+﻿# ===============================
+# Istio mTLS encryption policies
+# ===============================
+
+{% if istio_enable_mesh_wide_mtls | bool %}
+---
+# Mesh-wide mTLS policy
+# 放在 istio-system 下，对整个 mesh 生效
+# 初期建议 PERMISSIVE，生产稳定后再考虑 STRICT
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: {{ istio_mesh_mtls_mode }}
+{% endif %}
+
+{% for ns in istio_mtls_namespaces %}
+---
+# Namespace-level mTLS policy
+# PERMISSIVE: 同时接受明文和 mTLS，适合灰度期
+# STRICT: 只接受 mTLS，要求调用方也在 mesh 内
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: {{ ns }}
+spec:
+  mtls:
+    mode: {{ istio_mtls_mode }}
+{% endfor %}
+
+{% if istio_enable_destination_rules | bool %}
+{% for dr in istio_mtls_destination_rules %}
+---
+# DestinationRule for Istio mutual TLS
+# 客户端 sidecar 访问该服务时使用 ISTIO_MUTUAL
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ dr.name }}-mtls
+  namespace: {{ dr.namespace }}
+spec:
+  host: {{ dr.host }}
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+{% endfor %}
+{% endif %}
