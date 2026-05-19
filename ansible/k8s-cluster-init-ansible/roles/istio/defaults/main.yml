@@ -42,12 +42,13 @@ istio_trust_domain: "cluster.local"
 # 后续只把业务 namespace 加进来
 # =========================
 
-istio_injection_namespaces: []
-# 例子：
-# istio_injection_namespaces:
-#   - prod-paas-components
-#   - prod-itex-components
-#   - prod-itex-servers
+istio_injection_namespaces:
+  - prod-itex-components
+  - prod-itex-servers
+  - prod-paas-components
+  - prod-srm-components
+  - stable-itex-components
+  - stable-itex-servers
 
 # =========================
 # Public gateway
