@@ -1,0 +1,42 @@
+﻿---
+# =========================
+# Rancher single-instance install
+# =========================
+
+rancher_namespace: "cattle-system"
+
+rancher_release_name: "rancher"
+rancher_chart_archive: "rancher-2.14.1.tgz"
+rancher_work_dir: "/etc/kubernetes/rancher"
+
+# Rancher 访问域名
+rancher_hostname: "rancher.itexcloud.com"
+
+# 单体架构：1 个副本
+# 注意：这不是 Rancher HA
+rancher_replicas: 1
+
+# 首次登录 bootstrap 密码
+rancher_bootstrap_password: "ChangeMe-Rancher-2026"
+
+# 用腾讯云 CLB 做 HTTPS 证书终止，然后转 HTTP 到 Istio Gateway
+# 所以 Rancher chart 自带 Ingress 关闭
+rancher_ingress_enabled: false
+
+# 证书来源 external：表示 TLS 在外部 LB / 网关处理
+rancher_tls_source: "external"
+
+# cert-manager 已经装了，但这里不让 Rancher 自己申请证书
+rancher_certmanager_version: ""
+
+# Rancher 镜像
+rancher_image_repository: "rancher/rancher"
+rancher_image_tag: "v2.14.1"
+
+# 资源限制，单体轻量版
+rancher_cpu_request: "250m"
+rancher_memory_request: "512Mi"
+rancher_cpu_limit: "2"
+rancher_memory_limit: "2Gi"
+
+rancher_helm_timeout: "15m"

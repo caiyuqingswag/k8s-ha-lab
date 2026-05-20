@@ -1,0 +1,144 @@
+﻿---
+# =========================
+# Install Rancher single-instance by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Rancher working directory exists
+  ansible.builtin.file:
+    path: "{{ rancher_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Rancher Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ rancher_chart_archive }}"
+    dest: "{{ rancher_work_dir }}/{{ rancher_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Rancher values.yaml
+  ansible.builtin.template:
+    src: rancher-values.yaml.j2
+    dest: "{{ rancher_work_dir }}/values.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Rancher namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ rancher_namespace }}"
+  register: rancher_ns_create
+  failed_when:
+    - rancher_ns_create.rc != 0
+    - "'AlreadyExists' not in rancher_ns_create.stderr"
+  changed_when: rancher_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Rancher via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ rancher_release_name }}"
+      - "{{ rancher_work_dir }}/{{ rancher_chart_archive }}"
+      - --namespace
+      - "{{ rancher_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ rancher_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ rancher_helm_timeout }}"
+      - --wait
+  register: rancher_helm_result
+  changed_when: "'has been upgraded' in rancher_helm_result.stdout or 'has been installed' in rancher_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Rancher Helm result
+  ansible.builtin.debug:
+    msg: "{{ rancher_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Rancher deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ rancher_namespace }}"
+      - rollout
+      - status
+      - deploy/rancher
+      - --timeout=15m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Rancher pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ rancher_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: rancher_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Rancher pods
+  ansible.builtin.debug:
+    msg: "{{ rancher_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Rancher service
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ rancher_namespace }}"
+      - get
+      - svc
+      - rancher
+      - -o
+      - wide
+  register: rancher_svc
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Rancher service
+  ansible.builtin.debug:
+    msg: "{{ rancher_svc.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

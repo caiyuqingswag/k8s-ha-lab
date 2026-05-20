@@ -1,185 +1,80 @@
-## 目录说明
+server
+{
+listen 39001;
+listen 443 ssl;
+http2 on;
+listen 80;
+server_name 192.168.189.251 deeptexbackend.itexplat.com;
+index index.php index.html index.htm default.php default.htm default.html;
+root /www/wwwroot/218.245.97.22_39001/fa-ai05/public;
+#CERT-APPLY-CHECK--START
+# 用于SSL证书申请时的文件验证相关配置 -- 请勿删除
+include /www/server/panel/vhost/nginx/well-known/192.168.189.251.conf;
+#CERT-APPLY-CHECK--END
+include /www/server/panel/vhost/nginx/extension/192.168.189.251/*.conf;
 
-```text
-k8s-cluster-init-ansible/
-├── inventory.ini                 # 主机清单
-├── site.yml                      # Ansible 统一入口
-├── readme.md                     # 项目说明文档
-│
-├── group_vars/
-│   └── all.yml                   # 全局变量配置
-│
-├── roles/
-│   ├── common/                   # 操作系统初始化与调优
-│   ├── containerd/               # Containerd 安装与配置
-│   ├── kube/                     # kubelet / kubeadm / kubectl 安装
-│   ├── kubeadm/                  # kubeadm 初始化与节点加入
-│   ├── cni/                      # CNI 网络插件
-│   ├── lb/                       # 负载均衡（Nginx + Keepalived）
-│   └── system_update/            # 系统升级与智能重启控制
-│
-└── upgrade-reports/              # 系统升级报告输出目录
-```
+    #SSL-START SSL相关配置，请勿删除或修改下一行带注释的404规则
+    #error_page 404/404.html;
+    ssl_certificate    /www/server/panel/vhost/cert/192.168.189.251/fullchain.pem;
+    ssl_certificate_key    /www/server/panel/vhost/cert/192.168.189.251/privkey.pem;
+    ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;
+    ssl_ciphers EECDH+CHACHA20:EECDH+CHACHA20-draft:EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:EECDH+3DES:RSA+3DES:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_tickets on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    add_header Strict-Transport-Security "max-age=31536000";
+    error_page 497  https://$host$request_uri;
 
----
+    #SSL-END
 
-## 执行顺序说明（非常重要）
+    #ERROR-PAGE-START  错误页配置，可以注释、删除或修改
+    error_page 404 /404.html;
+    #error_page 502 /502.html;
+    #ERROR-PAGE-END
 
-整个集群初始化流程按以下顺序执行，每一步都可以单独运行，也可以组合执行。
+    #PHP-INFO-START  PHP引用配置，可以注释或修改
+    include enable-php-81.conf;
+    #PHP-INFO-END
 
----
+    #REWRITE-START URL重写规则引用,修改后将导致面板设置的伪静态规则失效
+    include /www/server/panel/vhost/rewrite/192.168.189.251.conf;
+    #REWRITE-END
 
-### 1️⃣ 系统升级与内核更新（推荐先执行）
+    # 禁止访问的敏感文件
+    location ~* (\.user.ini|\.htaccess|\.htpasswd|\.env.*|\.project|\.bashrc|\.bash_profile|\.bash_logout|\.DS_Store|\.gitignore|\.gitattributes|LICENSE|README\.md|CLAUDE\.md|CHANGELOG\.md|CHANGELOG|CONTRIBUTING\.md|TODO\.md|FAQ\.md|composer\.json|composer\.lock|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|\.\w+~|\.swp|\.swo|\.bak(up)?|\.old|\.tmp|\.temp|\.log|\.sql(\.gz)?|docker-compose\.yml|docker\.env|Dockerfile|\.csproj|\.sln|Cargo\.toml|Cargo\.lock|go\.mod|go\.sum|phpunit\.xml|phpunit\.xml|pom\.xml|build\.gradl|pyproject\.toml|requirements\.txt|application(-\w+)?\.(ya?ml|properties))$
+    {
+        return 404;
+    }
+    
+    # 禁止访问的敏感目录
+    location ~* /(\.git|\.svn|\.bzr|\.vscode|\.claude|\.idea|\.ssh|\.github|\.npm|\.yarn|\.pnpm|\.cache|\.husky|\.turbo|\.next|\.nuxt|node_modules|runtime)/ {
+        return 404;
+    }
 
-该步骤用于统一所有节点的系统环境，包括：
+    #一键申请SSL证书验证目录相关设置
+    location ~ \.well-known{
+        allow all;
+    }
 
-* 系统软件升级
-* 内核升级
-* 判断是否需要重启
-* 自动生成升级报告
+    #禁止在证书验证目录放入敏感文件
+    if ( $uri ~ "^/\.well-known/.*\.(php|jsp|py|js|css|lua|ts|go|zip|tar\.gz|rar|7z|sql|bak)$" ) {
+        return 403;
+    }
 
-```bash
-ansible-playbook -i inventory.ini site.yml --tags update -vv
-```
+    location ~ .*\.(gif|jpg|jpeg|png|bmp|swf)$
+    {
+        expires      30d;
+        error_log /dev/null;
+        access_log /dev/null;
+    }
 
----
-
-### 2️⃣ 系统初始化与调优
-
-包含：
-
-* 关闭 SELinux / Swap
-* 内核参数调优
-* limits / journald 配置
-* 基础工具安装
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags common
-```
-
----
-
-### 3️⃣ 部署负载均衡（HA 场景） /后续会建新分支来做部署kube-vip作为HA实现控制平面高可用
-
-使用 Nginx + Keepalived 实现控制平面高可用。
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags lb
-```
-
----
-
-### 4️⃣ 安装 Container Runtime
-
-包含：
-
-* containerd 安装
-* 镜像加速配置
-* crictl 配置
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags containerd
-```
-
----
-
-### 5️⃣ 安装 Kubernetes 组件
-
-包含：
-
-* kubelet
-* kubeadm
-* kubectl
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags kube
-```
-
----
-
-### 6️⃣ 初始化第一个 Master 节点
-
-该步骤会：
-
-* 生成 kubeadm 配置
-* 初始化集群
-* 部署 CNI
-* 生成 join 信息
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags init
-```
-
----
-
-### 7️⃣ 加入其他 Master（控制平面）
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags join_masters
-```
-
----
-
-### 8️⃣ 加入 Worker 节点
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags join_workers
-```
-
----
-
-## 推荐的完整执行流程
-
-如果是从零开始初始化集群，推荐按以下顺序执行：
-
-```bash
-ansible-playbook -i inventory.ini site.yml --tags update -vv
-# 重启后
-ansible-playbook -i inventory.ini site.yml --tags common
-ansible-playbook -i inventory.ini site.yml --tags lb
-ansible-playbook -i inventory.ini site.yml --tags containerd
-ansible-playbook -i inventory.ini site.yml --tags kube
-ansible-playbook -i inventory.ini site.yml --tags init
-ansible-playbook -i inventory.ini site.yml --tags join_masters
-ansible-playbook -i inventory.ini site.yml --tags join_workers
-```
-
----
-
-## 设计理念
-
-* 声明式，而非命令式
-* 所有关键配置可追溯
-* 不依赖默认行为
-* 支持幂等执行
-* 为规模而设计
-
----
-
-## 项目价值
-
-相较于传统的 Shell 脚本方式，本项目具有以下优势：
-
-| 对比项   | Shell | Ansible |
-| ----- | ----- | ------- |
-| 批量执行  | ❌     | ✅       |
-| 幂等性   | ❌     | ✅       |
-| 失败重试  | ❌     | ✅       |
-| 状态可追踪 | ❌     | ✅       |
-| 可维护性  | ❌     | ✅       |
-| 大规模支持 | ❌     | ✅       |
-
----
-
-## 总结
-
-本项目通过 Ansible 将 Kubernetes 集群初始化流程工程化，使其具备：
-
-* 可维护性
-* 可重复性
-* 可验证性
-* 可扩展性
-
-适用于中大型集群初始化及生产环境标准化部署。
-
----
+    location ~ .*\.(js|css)?$
+    {
+        expires      12h;
+        error_log /dev/null;
+        access_log /dev/null;
+    }
+    access_log  /www/wwwlogs/192.168.189.251.log;
+    error_log  /www/wwwlogs/192.168.189.251.error.log;
+}
