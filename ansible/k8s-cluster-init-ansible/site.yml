@@ -189,7 +189,6 @@
     - role: rancher
   tags:
     - rancher
-    -
 # =========================
 # Longhorn prerequisites
 # =========================

@@ -36,3 +36,9 @@ istio_internal_routes:
     host: longhorn.itexcloud.com
     serviceHost: longhorn-frontend.longhorn-system.svc.cluster.local
     servicePort: 80
+
+  - name: rancher
+    namespace: cattle-system
+    host: rancher.itexcloud.com
+    serviceHost: rancher.cattle-system.svc.cluster.local
+    servicePort: 80
