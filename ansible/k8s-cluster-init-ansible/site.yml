@@ -182,6 +182,14 @@
 #     - kubevip-lb
 
 
+- name: Install Rancher
+  hosts: all
+  become: true
+  roles:
+    - role: rancher
+  tags:
+    - rancher
+    -
 # =========================
 # Longhorn prerequisites
 # =========================
