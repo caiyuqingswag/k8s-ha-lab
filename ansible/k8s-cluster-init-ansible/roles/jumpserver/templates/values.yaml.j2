@@ -1,0 +1,41 @@
+﻿---
+hostname: "{{ jumpserver_hostname }}"
+replicas: {{ jumpserver_replicas }}
+adminPassword: "{{ jumpserver_admin_password }}"
+
+{% if not jumpserver_postgres_external %}
+postgres:
+  enabled: true
+{% else %}
+postgres:
+  enabled: false
+  host: "{{ jumpserver_postgres_host }}"
+  port: {{ jumpserver_postgres_port }}
+  username: "{{ jumpserver_postgres_user }}"
+  password: "{{ jumpserver_postgres_password }}"
+  database: "{{ jumpserver_postgres_db }}"
+{% endif %}
+
+{% if not jumpserver_redis_external %}
+redis:
+  enabled: true
+{% else %}
+redis:
+  enabled: false
+  host: "{{ jumpserver_redis_host }}"
+  port: {{ jumpserver_redis_port }}
+  password: "{{ jumpserver_redis_password }}"
+{% endif %}
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "2"
+    memory: "2Gi"
+
+antiAffinity: "preferred"

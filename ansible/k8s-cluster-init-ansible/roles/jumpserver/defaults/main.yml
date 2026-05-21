@@ -1,0 +1,33 @@
+﻿---
+jumpserver_namespace: "jumpserver"
+jumpserver_release_name: "jumpserver"
+jumpserver_chart_archive: "jumpserver-3.6.0.tgz"
+jumpserver_work_dir: "/etc/kubernetes/jumpserver"
+jumpserver_hostname: "jumpserver.itexcloud.com"
+jumpserver_replicas: 1
+jumpserver_admin_password: "ChangeMeJump2026"
+
+jumpserver_postgres_external: false
+jumpserver_postgres_host: ""
+jumpserver_postgres_port: 5432
+jumpserver_postgres_user: "jumpserver"
+jumpserver_postgres_password: "ChangeMePostgres2026"
+jumpserver_postgres_db: "jumpserver"
+
+jumpserver_redis_external: false
+jumpserver_redis_host: ""
+jumpserver_redis_port: 6379
+jumpserver_redis_password: "ChangeMeRedis2026"
+
+jumpserver_helm_timeout: "15m"
+
+
+#切换为 外置数据库或 Redis，在 vars/main.yml 或 playbook 调用时覆盖：
+#jumpserver_postgres_external: true
+#jumpserver_postgres_host: "postgres.external.svc.cluster.local"
+#jumpserver_redis_external: true
+#jumpserver_redis_host: "redis.external.svc.cluster.local"
+
+#然后重新执行：
+
+#ansible-playbook -i inventory.ini site.yml --tags jumpserver
