@@ -2,6 +2,8 @@
 hostname: "{{ jumpserver_hostname }}"
 replicas: {{ jumpserver_replicas }}
 adminPassword: "{{ jumpserver_admin_password }}"
+secretKey: "{{ jumpserver_secret_key }}"
+
 
 {% if not jumpserver_postgres_external %}
 postgres:

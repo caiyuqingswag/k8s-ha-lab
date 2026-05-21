@@ -6,6 +6,8 @@ jumpserver_work_dir: "/etc/kubernetes/jumpserver"
 jumpserver_hostname: "jumpserver.itexcloud.com"
 jumpserver_replicas: 1
 jumpserver_admin_password: "ChangeMeJump2026"
+jumpserver_secret_key: "veYIk6OW1W9OnSF2pcsNGTiGH3/Mihpgo3TT3TxUlQ4="
+
 
 jumpserver_postgres_external: false
 jumpserver_postgres_host: ""
