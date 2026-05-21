@@ -500,6 +500,14 @@
   tags:
     - sealed-secrets
 
+- name: Install JumpServer
+  hosts: all
+  become: true
+  roles:
+    - role: jumpserver
+  tags:
+    - jumpserver
+
 - name: Deploy NFS server
   hosts: nfs-server
   become: true
