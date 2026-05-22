@@ -18,7 +18,7 @@ jumpserver_bootstrap_token: "JMSBootstrapToken2026ABCDEF"
 jumpserver_image_registry: "docker.io"
 
 # JumpServer 这种平台应用建议用 longhorn，不建议 local-path
-jumpserver_storage_class: "longhorn"
+jumpserver_storage_class: "local-path"
 
 # =========================
 # Built-in MySQL
