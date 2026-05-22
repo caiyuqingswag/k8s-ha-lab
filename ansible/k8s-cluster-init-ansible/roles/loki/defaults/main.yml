@@ -1,4 +1,3 @@
----
 loki_namespace: "logging"
 
 loki_chart_version: "14.0.0"
@@ -25,6 +24,16 @@ loki_cpu_request: "200m"
 loki_memory_request: "512Mi"
 loki_cpu_limit: "2"
 loki_memory_limit: "2Gi"
+
+# Grafana Loki datasource
+loki_create_grafana_datasource: true
+loki_grafana_namespace: "monitoring"
+loki_grafana_datasource_name: "Loki"
+loki_grafana_datasource_uid: "loki"
+
+# Loki Gateway 地址
+# 你的 loki-values.yaml.j2 里 gateway.enabled=true，所以优先用 loki-gateway
+loki_grafana_datasource_url: "http://loki-gateway.logging.svc.cluster.local"
 
 # Helm
 loki_helm_timeout: "10m"

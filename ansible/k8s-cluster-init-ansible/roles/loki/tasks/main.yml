@@ -1,4 +1,3 @@
----
 # =========================
 # Install Loki by offline Helm chart
 # Run Helm operations from first master only
@@ -31,6 +30,15 @@
     dest: "{{ loki_work_dir }}/values.yaml"
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
+
+- name: Render Grafana Loki datasource
+  ansible.builtin.template:
+    src: grafana-loki-datasource.yaml.j2
+    dest: "{{ loki_work_dir }}/grafana-loki-datasource.yaml"
+    mode: "0644"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - loki_create_grafana_datasource | bool
 
 - name: Check kube-apiserver is reachable
   ansible.builtin.command:
@@ -87,6 +95,27 @@
   ansible.builtin.debug:
     msg: "{{ loki_helm_result.stdout_lines | default([]) }}"
   when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Grafana Loki datasource
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ loki_work_dir }}/grafana-loki-datasource.yaml"
+  register: loki_grafana_datasource_apply
+  changed_when: "'created' in loki_grafana_datasource_apply.stdout or 'configured' in loki_grafana_datasource_apply.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - loki_create_grafana_datasource | bool
+
+- name: Show Grafana Loki datasource apply result
+  ansible.builtin.debug:
+    msg: "{{ loki_grafana_datasource_apply.stdout_lines | default([]) }}"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - loki_create_grafana_datasource | bool
 
 - name: Show Loki pods
   ansible.builtin.command:
