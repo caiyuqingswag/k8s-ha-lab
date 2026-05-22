@@ -1,0 +1,167 @@
+﻿{% if jumpserver_builtin_mysql_enabled | bool and not jumpserver_external_mysql_enabled | bool %}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ jumpserver_mysql_name }}
+  namespace: {{ jumpserver_namespace }}
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: "{{ jumpserver_mysql_root_password }}"
+  MYSQL_DATABASE: "{{ jumpserver_mysql_database }}"
+  MYSQL_USER: "{{ jumpserver_mysql_user }}"
+  MYSQL_PASSWORD: "{{ jumpserver_mysql_password }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ jumpserver_mysql_name }}
+  namespace: {{ jumpserver_namespace }}
+spec:
+  selector:
+    app: {{ jumpserver_mysql_name }}
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ jumpserver_mysql_name }}
+  namespace: {{ jumpserver_namespace }}
+spec:
+  serviceName: {{ jumpserver_mysql_name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ jumpserver_mysql_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ jumpserver_mysql_name }}
+    spec:
+      containers:
+        - name: mysql
+          image: {{ jumpserver_mysql_image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mysql
+              containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: {{ jumpserver_mysql_name }}
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+            - --default-authentication-plugin=mysql_native_password
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD
+            initialDelaySeconds: 60
+            periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ jumpserver_storage_class }}
+        resources:
+          requests:
+            storage: {{ jumpserver_mysql_storage_size }}
+{% endif %}
+
+{% if jumpserver_builtin_redis_enabled | bool and not jumpserver_external_redis_enabled | bool %}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ jumpserver_redis_name }}
+  namespace: {{ jumpserver_namespace }}
+type: Opaque
+stringData:
+  REDIS_PASSWORD: "{{ jumpserver_redis_password }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ jumpserver_redis_name }}
+  namespace: {{ jumpserver_namespace }}
+spec:
+  selector:
+    app: {{ jumpserver_redis_name }}
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ jumpserver_redis_name }}
+  namespace: {{ jumpserver_namespace }}
+spec:
+  serviceName: {{ jumpserver_redis_name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ jumpserver_redis_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ jumpserver_redis_name }}
+    spec:
+      containers:
+        - name: redis
+          image: {{ jumpserver_redis_image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: redis
+              containerPort: 6379
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ jumpserver_redis_name }}
+                  key: REDIS_PASSWORD
+          command:
+            - sh
+            - -c
+            - redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep PONG
+            initialDelaySeconds: 10
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ jumpserver_storage_class }}
+        resources:
+          requests:
+            storage: {{ jumpserver_redis_storage_size }}
+{% endif %}

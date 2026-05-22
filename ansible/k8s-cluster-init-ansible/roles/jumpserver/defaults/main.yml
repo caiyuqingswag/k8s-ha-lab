@@ -3,33 +3,52 @@ jumpserver_namespace: "jumpserver"
 jumpserver_release_name: "jumpserver"
 jumpserver_chart_archive: "jumpserver-3.6.0.tgz"
 jumpserver_work_dir: "/etc/kubernetes/jumpserver"
+
 jumpserver_hostname: "jumpserver.itexcloud.com"
-jumpserver_replicas: 1
-jumpserver_admin_password: "ChangeMeJump2026"
-jumpserver_secret_key: "veYIk6OW1W9OnSF2pcsNGTiGH3/Mihpgo3TT3TxUlQ4="
 
+# JumpServer 核心密钥：以后不要随便改
+jumpserver_secret_key: "veYIk6OW1W9OnSF2pcsNGTiGH3Mihpgo3TT3TxUlQ4ABCDEF"
+jumpserver_bootstrap_token: "JMSBootstrapToken2026ABCDEF"
 
-jumpserver_postgres_external: false
-jumpserver_postgres_host: ""
-jumpserver_postgres_port: 5432
-jumpserver_postgres_user: "jumpserver"
-jumpserver_postgres_password: "ChangeMePostgres2026"
-jumpserver_postgres_db: "jumpserver"
+# 镜像仓库
+jumpserver_image_registry: "docker.io"
 
-jumpserver_redis_external: false
-jumpserver_redis_host: ""
-jumpserver_redis_port: 6379
+# 存储
+jumpserver_storage_class: "{{ global_storage_class | default('longhorn') }}"
+
+# 内置 MySQL
+jumpserver_builtin_mysql_enabled: true
+jumpserver_mysql_name: "jumpserver-mysql"
+jumpserver_mysql_image: "mysql:8.0"
+jumpserver_mysql_database: "jumpserver"
+jumpserver_mysql_user: "jumpserver"
+jumpserver_mysql_password: "ChangeMeMysql2026"
+jumpserver_mysql_root_password: "ChangeMeMysqlRoot2026"
+jumpserver_mysql_storage_size: "20Gi"
+
+# 内置 Redis
+jumpserver_builtin_redis_enabled: true
+jumpserver_redis_name: "jumpserver-redis"
+jumpserver_redis_image: "redis:7.2-alpine"
 jumpserver_redis_password: "ChangeMeRedis2026"
+jumpserver_redis_storage_size: "5Gi"
 
-jumpserver_helm_timeout: "15m"
+# 外置 MySQL/Redis 开关
+# 如果以后切外置，把 builtin 关掉，再改 external host
+jumpserver_external_mysql_enabled: false
+jumpserver_external_mysql_host: ""
+jumpserver_external_mysql_port: 3306
 
+jumpserver_external_redis_enabled: false
+jumpserver_external_redis_host: ""
+jumpserver_external_redis_port: 6379
 
-#切换为 外置数据库或 Redis，在 vars/main.yml 或 playbook 调用时覆盖：
-#jumpserver_postgres_external: true
-#jumpserver_postgres_host: "postgres.external.svc.cluster.local"
-#jumpserver_redis_external: true
-#jumpserver_redis_host: "redis.external.svc.cluster.local"
+# JumpServer chart 组件副本数
+jumpserver_core_replica_count: 1
+jumpserver_koko_replica_count: 1
+jumpserver_lion_replica_count: 1
+jumpserver_chen_replica_count: 1
+jumpserver_celery_replica_count: 1
+jumpserver_web_replica_count: 1
 
-#然后重新执行：
-
-#ansible-playbook -i inventory.ini site.yml --tags jumpserver
+jumpserver_helm_timeout: "20m"
