@@ -51,6 +51,6 @@ tempo_grafana_datasource_uid: "tempo"
 tempo_loki_datasource_uid: "loki"
 
 # Prometheus datasource uid，用于 trace metrics 查询
-tempo_prometheus_datasource_uid: "prometheus"
+tempo_prometheus_datasource_uid: "prometheus-prod-hz-01"
 
 tempo_helm_timeout: "10m"

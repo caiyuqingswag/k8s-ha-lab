@@ -35,6 +35,7 @@ alertmanager_memory_limit: "1Gi"
 # Grafana datasource sidecar 使用
 grafana_namespace: "monitoring"
 grafana_prometheus_datasource_name: "Prometheus"
+grafana_prometheus_datasource_uid: "prometheus-prod-hz-01"
 grafana_prometheus_datasource_url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
 
 prometheus_helm_timeout: "15m"
