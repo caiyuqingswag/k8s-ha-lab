@@ -1,6 +1,8 @@
 ﻿---
 # =========================
 # Install Grafana Alloy by offline Helm chart
+# Logs -> Loki
+# Traces -> Tempo
 # Run Helm operations from first master only
 # =========================
 
@@ -32,6 +34,13 @@
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
+- name: Render Alloy OTLP service
+  ansible.builtin.template:
+    src: alloy-otlp-service.yaml.j2
+    dest: "{{ alloy_work_dir }}/alloy-otlp-service.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
 - name: Check kube-apiserver is reachable
   ansible.builtin.command:
     argv:
@@ -60,6 +69,20 @@
     - "'AlreadyExists' not in alloy_ns_create.stderr"
   changed_when: alloy_ns_create.rc == 0
   when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Alloy OTLP service
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ alloy_work_dir }}/alloy-otlp-service.yaml"
+  register: alloy_otlp_service_apply
+  changed_when: "'created' in alloy_otlp_service_apply.stdout or 'configured' in alloy_otlp_service_apply.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - alloy_traces_enabled | bool
 
 - name: Install or upgrade Alloy via Helm
   ansible.builtin.command:
@@ -120,4 +143,24 @@
 - name: Print Alloy pods
   ansible.builtin.debug:
     msg: "{{ alloy_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Alloy services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ alloy_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: alloy_services
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Alloy services
+  ansible.builtin.debug:
+    msg: "{{ alloy_services.stdout_lines }}"
   when: inventory_hostname == groups['masters'][0]
