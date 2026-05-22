@@ -20,17 +20,14 @@ kiali_work_dir: "/etc/kubernetes/kiali"
 kiali_instance_name: "kiali"
 kiali_hostname: "kiali.itexcloud.com"
 
-# Kiali auth strategy:
 # anonymous: 内网/白名单环境最简单
-# token: 需要 kube token
-# openshift: OpenShift 环境用
+# token: 使用 Kubernetes token 登录
 kiali_auth_strategy: "anonymous"
 
 # Istio namespace
 kiali_istio_namespace: "istio-system"
 
 # Prometheus 地址
-# 你的 kube-prometheus-stack 默认一般是这个 svc
 kiali_prometheus_url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
 
 # Grafana 地址
@@ -38,11 +35,12 @@ kiali_grafana_enabled: true
 kiali_grafana_internal_url: "http://grafana.monitoring.svc.cluster.local"
 kiali_grafana_external_url: "https://grafana.itexcloud.com"
 
-# Tracing
-# 不部署 Tempo 再改 false
+# Tracing / Tempo
+# 如果 Tempo 已装好，可以改 true
 kiali_tracing_enabled: true
 kiali_tracing_internal_url: "http://tempo.tracing.svc.cluster.local:3200"
 kiali_tracing_external_url: "https://grafana.itexcloud.com"
+kiali_tempo_datasource_uid: "tempo"
 
 # Kiali resources
 kiali_cpu_request: "100m"

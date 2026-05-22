@@ -6,16 +6,15 @@ metadata:
   name: {{ kiali_instance_name }}
   namespace: {{ kiali_instance_namespace }}
 spec:
-  version: default
-
   auth:
     strategy: "{{ kiali_auth_strategy }}"
 
   deployment:
     accessible_namespaces:
       - "**"
-    namespace: {{ kiali_instance_namespace }}
     instance_name: {{ kiali_instance_name }}
+    replicas: 1
+    service_type: ClusterIP
     resources:
       requests:
         cpu: "{{ kiali_cpu_request }}"
@@ -36,18 +35,23 @@ spec:
       root_namespace: {{ kiali_istio_namespace }}
 
     prometheus:
+      enabled: true
       url: "{{ kiali_prometheus_url }}"
 
     grafana:
       enabled: {{ kiali_grafana_enabled | bool | lower }}
-      in_cluster_url: "{{ kiali_grafana_internal_url }}"
-      url: "{{ kiali_grafana_external_url }}"
+      internal_url: "{{ kiali_grafana_internal_url }}"
+      external_url: "{{ kiali_grafana_external_url }}"
 
 {% if kiali_tracing_enabled | bool %}
     tracing:
       enabled: true
-      in_cluster_url: "{{ kiali_tracing_internal_url }}"
-      url: "{{ kiali_tracing_external_url }}"
+      provider: "tempo"
+      internal_url: "{{ kiali_tracing_internal_url }}"
+      external_url: "{{ kiali_tracing_external_url }}"
+      use_grpc: false
+      tempo_config:
+        datasource_uid: "{{ kiali_tempo_datasource_uid }}"
 {% else %}
     tracing:
       enabled: false

@@ -142,7 +142,24 @@
     msg: "{{ kiali_cr_apply.stdout_lines | default([]) }}"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Wait for Kiali deployment
+- name: Wait until Kiali deployment is created by operator
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ kiali_instance_namespace }}"
+      - get
+      - deploy
+      - "{{ kiali_instance_name }}"
+  register: kiali_deploy_created
+  retries: 90
+  delay: 5
+  until: kiali_deploy_created.rc == 0
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Kiali deployment rollout
   ansible.builtin.command:
     argv:
       - kubectl
@@ -151,7 +168,7 @@
       - "{{ kiali_instance_namespace }}"
       - rollout
       - status
-      - deploy/kiali
+      - "deploy/{{ kiali_instance_name }}"
       - --timeout=10m
   changed_when: false
   when: inventory_hostname == groups['masters'][0]
@@ -187,7 +204,7 @@
       - "{{ kiali_instance_namespace }}"
       - get
       - svc
-      - kiali
+      - "{{ kiali_instance_name }}"
       - -o
       - wide
   register: kiali_svc
@@ -197,4 +214,25 @@
 - name: Print Kiali service
   ansible.builtin.debug:
     msg: "{{ kiali_svc.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Kiali CR status
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ kiali_instance_namespace }}"
+      - get
+      - kiali
+      - "{{ kiali_instance_name }}"
+      - -o
+      - wide
+  register: kiali_cr_status
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Kiali CR status
+  ansible.builtin.debug:
+    msg: "{{ kiali_cr_status.stdout_lines }}"
   when: inventory_hostname == groups['masters'][0]
