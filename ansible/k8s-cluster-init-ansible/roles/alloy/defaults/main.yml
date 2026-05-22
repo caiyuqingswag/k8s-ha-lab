@@ -39,7 +39,7 @@ alloy_keep_current_node_only: true
 # 是否开启 Trace 接收
 alloy_traces_enabled: true
 
-# Alloy 接收应用 Trace 的端口
+# Alloy 对业务应用暴露的 OTLP 接收端口
 alloy_otlp_grpc_port: 4317
 alloy_otlp_http_port: 4318
 
@@ -52,7 +52,7 @@ alloy_otlp_service_name: "alloy-otlp"
 # Tempo OTLP gRPC 地址
 alloy_tempo_otlp_endpoint: "tempo.tracing.svc.cluster.local:4317"
 
-# 集群内访问 Tempo，一般 true
+# 集群内明文 gRPC，跳过 TLS
 alloy_tempo_otlp_tls_insecure: true
 
 # =========================

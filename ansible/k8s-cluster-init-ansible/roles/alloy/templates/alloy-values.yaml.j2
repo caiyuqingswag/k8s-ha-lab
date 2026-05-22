@@ -1,6 +1,7 @@
 ﻿# ===============================
 # Grafana Alloy Helm values
-# Collect Kubernetes pod logs -> Loki
+# Logs -> Loki
+# Traces -> Tempo
 # ===============================
 
 alloy:
@@ -10,9 +11,25 @@ alloy:
         fieldRef:
           fieldPath: spec.nodeName
 
+  extraPorts:
+{% if alloy_traces_enabled | bool %}
+    - name: otlp-grpc
+      port: {{ alloy_otlp_grpc_port }}
+      targetPort: {{ alloy_otlp_grpc_port }}
+      protocol: TCP
+    - name: otlp-http
+      port: {{ alloy_otlp_http_port }}
+      targetPort: {{ alloy_otlp_http_port }}
+      protocol: TCP
+{% endif %}
+
   configMap:
     create: true
     content: |
+      // ===============================
+      // Kubernetes Pod Logs -> Loki
+      // ===============================
+
       discovery.kubernetes "pods" {
         role = "pod"
         namespaces {
@@ -171,6 +188,49 @@ alloy:
           cluster = "{{ alloy_cluster_name }}",
         }
       }
+
+{% if alloy_traces_enabled | bool %}
+      // ===============================
+      // OTLP Traces -> Tempo
+      // ===============================
+      //
+      // 应用发送到 Alloy：
+      //   OTLP gRPC: alloy-otlp.logging.svc.cluster.local:4317
+      //   OTLP HTTP: http://alloy-otlp.logging.svc.cluster.local:4318
+      //
+      // Alloy 转发到 Tempo：
+      //   tempo.tracing.svc.cluster.local:4317
+
+      otelcol.receiver.otlp "traces" {
+        grpc {
+          endpoint = "0.0.0.0:{{ alloy_otlp_grpc_port }}"
+        }
+
+        http {
+          endpoint = "0.0.0.0:{{ alloy_otlp_http_port }}"
+        }
+
+        output {
+          traces = [otelcol.processor.batch.traces.input]
+        }
+      }
+
+      otelcol.processor.batch "traces" {
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "{{ alloy_tempo_otlp_endpoint }}"
+
+          tls {
+            insecure = {{ alloy_tempo_otlp_tls_insecure | bool | lower }}
+          }
+        }
+      }
+{% endif %}
 
 controller:
   type: daemonset

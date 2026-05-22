@@ -111,6 +111,19 @@
     msg: "{{ alloy_helm_result.stdout_lines | default([]) }}"
   when: inventory_hostname == groups['masters'][0]
 
+- name: Restart Alloy DaemonSet to load new config
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ alloy_namespace }}"
+      - rollout
+      - restart
+      - ds/alloy
+  changed_when: true
+  when: inventory_hostname == groups['masters'][0]
+
 - name: Wait for Alloy DaemonSet
   ansible.builtin.command:
     argv:
@@ -163,4 +176,19 @@
 - name: Print Alloy services
   ansible.builtin.debug:
     msg: "{{ alloy_services.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Alloy rendered trace config
+  ansible.builtin.command:
+    argv:
+      - bash
+      - -lc
+      - "grep -n 'otelcol.receiver.otlp' -A60 {{ alloy_work_dir }}/values.yaml || true"
+  register: alloy_trace_config_check
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Alloy rendered trace config
+  ansible.builtin.debug:
+    msg: "{{ alloy_trace_config_check.stdout_lines }}"
   when: inventory_hostname == groups['masters'][0]
