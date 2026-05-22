@@ -42,3 +42,9 @@ istio_internal_routes:
     host: rancher.itexcloud.com
     serviceHost: rancher.cattle-system.svc.cluster.local
     servicePort: 80
+
+  - name: jumpserver
+    namespace: jumpserver
+    host: jumpserver.itexcloud.com
+    serviceHost: jumpserver-jms-web.jumpserver.svc.cluster.local
+    servicePort: 80
