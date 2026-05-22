@@ -41,7 +41,7 @@ ingress:
   enabled: false
 
 core:
-  enabled: true
+  enabled: {{ jumpserver_core_enabled | bool | lower }}
   config:
     secretKey: "{{ jumpserver_secret_key }}"
     bootstrapToken: "{{ jumpserver_bootstrap_token }}"
@@ -76,8 +76,28 @@ core:
       cpu: "2"
       memory: 2048Mi
 
+web:
+  enabled: {{ jumpserver_web_enabled | bool | lower }}
+  replicaCount: {{ jumpserver_web_replica_count }}
+  image:
+    registry: "{{ jumpserver_image_registry }}"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    web:
+      port: 80
+  persistence:
+    enabled: {{ jumpserver_web_persistence_enabled | bool | lower }}
+
+celery:
+  enabled: {{ jumpserver_celery_enabled | bool | lower }}
+  replicaCount: {{ jumpserver_celery_replica_count }}
+  image:
+    registry: "{{ jumpserver_image_registry }}"
+    pullPolicy: IfNotPresent
+
 koko:
-  enabled: true
+  enabled: {{ jumpserver_koko_enabled | bool | lower }}
   replicaCount: {{ jumpserver_koko_replica_count }}
   image:
     registry: "{{ jumpserver_image_registry }}"
@@ -99,7 +119,7 @@ koko:
       - kubernetes.io/pvc-protection
 
 lion:
-  enabled: true
+  enabled: {{ jumpserver_lion_enabled | bool | lower }}
   replicaCount: {{ jumpserver_lion_replica_count }}
   image:
     registry: "{{ jumpserver_image_registry }}"
@@ -118,27 +138,11 @@ lion:
     finalizers:
       - kubernetes.io/pvc-protection
 
+magnus:
+  enabled: {{ jumpserver_magnus_enabled | bool | lower }}
+
 chen:
-  enabled: true
-  replicaCount: {{ jumpserver_chen_replica_count }}
-  image:
-    registry: "{{ jumpserver_image_registry }}"
-    pullPolicy: IfNotPresent
+  enabled: {{ jumpserver_chen_enabled | bool | lower }}
 
-celery:
-  enabled: true
-  replicaCount: {{ jumpserver_celery_replica_count }}
-  image:
-    registry: "{{ jumpserver_image_registry }}"
-    pullPolicy: IfNotPresent
-
-web:
-  enabled: true
-  replicaCount: {{ jumpserver_web_replica_count }}
-  image:
-    registry: "{{ jumpserver_image_registry }}"
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-    web:
-      port: 80
+kael:
+  enabled: {{ jumpserver_kael_enabled | bool | lower }}

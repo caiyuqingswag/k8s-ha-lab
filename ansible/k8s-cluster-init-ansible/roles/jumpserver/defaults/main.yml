@@ -1,4 +1,9 @@
 ﻿---
+# =========================
+# JumpServer Helm install
+# Small single-instance mode
+# =========================
+
 jumpserver_namespace: "jumpserver"
 jumpserver_release_name: "jumpserver"
 jumpserver_chart_archive: "jumpserver-3.6.0.tgz"
@@ -6,17 +11,18 @@ jumpserver_work_dir: "/etc/kubernetes/jumpserver"
 
 jumpserver_hostname: "jumpserver.itexcloud.com"
 
-# JumpServer 核心密钥：以后不要随便改
+# 以后不要随便改，改了会导致已加密数据不可用
 jumpserver_secret_key: "veYIk6OW1W9OnSF2pcsNGTiGH3Mihpgo3TT3TxUlQ4ABCDEF"
 jumpserver_bootstrap_token: "JMSBootstrapToken2026ABCDEF"
 
-# 镜像仓库
 jumpserver_image_registry: "docker.io"
 
-# 存储
-jumpserver_storage_class: "{{ global_storage_class | default('longhorn') }}"
+# JumpServer 这种平台应用建议用 longhorn，不建议 local-path
+jumpserver_storage_class: "longhorn"
 
-# 内置 MySQL
+# =========================
+# Built-in MySQL
+# =========================
 jumpserver_builtin_mysql_enabled: true
 jumpserver_mysql_name: "jumpserver-mysql"
 jumpserver_mysql_image: "mysql:8.0"
@@ -26,15 +32,18 @@ jumpserver_mysql_password: "ChangeMeMysql2026"
 jumpserver_mysql_root_password: "ChangeMeMysqlRoot2026"
 jumpserver_mysql_storage_size: "20Gi"
 
-# 内置 Redis
+# =========================
+# Built-in Redis
+# =========================
 jumpserver_builtin_redis_enabled: true
 jumpserver_redis_name: "jumpserver-redis"
 jumpserver_redis_image: "redis:7.2-alpine"
 jumpserver_redis_password: "ChangeMeRedis2026"
 jumpserver_redis_storage_size: "5Gi"
 
-# 外置 MySQL/Redis 开关
-# 如果以后切外置，把 builtin 关掉，再改 external host
+# =========================
+# External MySQL / Redis switch
+# =========================
 jumpserver_external_mysql_enabled: false
 jumpserver_external_mysql_host: ""
 jumpserver_external_mysql_port: 3306
@@ -43,12 +52,28 @@ jumpserver_external_redis_enabled: false
 jumpserver_external_redis_host: ""
 jumpserver_external_redis_port: 6379
 
-# JumpServer chart 组件副本数
+# =========================
+# JumpServer components
+# =========================
+
+jumpserver_core_enabled: true
+jumpserver_web_enabled: true
+jumpserver_celery_enabled: true
+jumpserver_koko_enabled: true
+jumpserver_lion_enabled: true
+
+# 小规模堡垒机先关闭
+jumpserver_magnus_enabled: false
+jumpserver_chen_enabled: false
+jumpserver_kael_enabled: false
+
 jumpserver_core_replica_count: 1
+jumpserver_web_replica_count: 1
+jumpserver_celery_replica_count: 1
 jumpserver_koko_replica_count: 1
 jumpserver_lion_replica_count: 1
-jumpserver_chen_replica_count: 1
-jumpserver_celery_replica_count: 1
-jumpserver_web_replica_count: 1
+
+# 关闭 web logs PVC，避免 local-path/多 PVC 卡住
+jumpserver_web_persistence_enabled: false
 
 jumpserver_helm_timeout: "20m"

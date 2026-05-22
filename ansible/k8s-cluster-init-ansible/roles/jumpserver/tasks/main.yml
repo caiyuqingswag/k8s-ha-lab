@@ -134,22 +134,6 @@
     msg: "{{ jumpserver_helm_result.stdout_lines | default([]) }}"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Show rendered JumpServer values secretKey path
-  ansible.builtin.command:
-    argv:
-      - grep
-      - -A6
-      - "config:"
-      - "{{ jumpserver_work_dir }}/values.yaml"
-  register: jumpserver_values_check
-  changed_when: false
-  when: inventory_hostname == groups['masters'][0]
-
-- name: Print rendered JumpServer values check
-  ansible.builtin.debug:
-    msg: "{{ jumpserver_values_check.stdout_lines }}"
-  when: inventory_hostname == groups['masters'][0]
-
 - name: Show JumpServer pods
   ansible.builtin.command:
     argv:
@@ -168,6 +152,26 @@
 - name: Print JumpServer pods
   ansible.builtin.debug:
     msg: "{{ jumpserver_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show JumpServer PVCs
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - get
+      - pvc
+      - -o
+      - wide
+  register: jumpserver_pvcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print JumpServer PVCs
+  ansible.builtin.debug:
+    msg: "{{ jumpserver_pvcs.stdout_lines }}"
   when: inventory_hostname == groups['masters'][0]
 
 - name: Show JumpServer services

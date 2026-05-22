@@ -11,6 +11,7 @@ stringData:
   MYSQL_DATABASE: "{{ jumpserver_mysql_database }}"
   MYSQL_USER: "{{ jumpserver_mysql_user }}"
   MYSQL_PASSWORD: "{{ jumpserver_mysql_password }}"
+
 ---
 apiVersion: v1
 kind: Service
@@ -24,6 +25,7 @@ spec:
     - name: mysql
       port: 3306
       targetPort: 3306
+
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -96,6 +98,7 @@ metadata:
 type: Opaque
 stringData:
   REDIS_PASSWORD: "{{ jumpserver_redis_password }}"
+
 ---
 apiVersion: v1
 kind: Service
@@ -109,6 +112,7 @@ spec:
     - name: redis
       port: 6379
       targetPort: 6379
+
 ---
 apiVersion: apps/v1
 kind: StatefulSet
