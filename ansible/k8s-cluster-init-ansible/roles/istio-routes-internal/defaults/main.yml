@@ -31,20 +31,32 @@ istio_internal_routes:
     serviceHost: kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local
     servicePort: 9093
 
-  - name: longhorn
-    namespace: longhorn-system
-    host: longhorn.itexcloud.com
-    serviceHost: longhorn-frontend.longhorn-system.svc.cluster.local
-    servicePort: 80
+  - name: alertmanager
+    namespace: monitoring
+    host: alertmanager.itexcloud.com
+    serviceHost: kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local
+    servicePort: 9093
 
-  - name: rancher
-    namespace: cattle-system
-    host: rancher.itexcloud.com
-    serviceHost: rancher.cattle-system.svc.cluster.local
-    servicePort: 80
+  - name: kiali
+    namespace: istio-system
+    host: kiali.itexcloud.com
+    serviceHost: kiali.istio-system.svc.cluster.local
+    servicePort: 20001
 
-  - name: jumpserver
-    namespace: jumpserver
-    host: jumpserver.itexcloud.com
-    serviceHost: jumpserver-jms-web.jumpserver.svc.cluster.local
-    servicePort: 80
+#  - name: longhorn
+#    namespace: longhorn-system
+#    host: longhorn.itexcloud.com
+#    serviceHost: longhorn-frontend.longhorn-system.svc.cluster.local
+#    servicePort: 80
+
+#  - name: rancher
+#    namespace: cattle-system
+#    host: rancher.itexcloud.com
+#    serviceHost: rancher.cattle-system.svc.cluster.local
+#    servicePort: 80
+
+#  - name: jumpserver
+#    namespace: jumpserver
+#    host: jumpserver.itexcloud.com
+#    serviceHost: jumpserver-jms-web.jumpserver.svc.cluster.local
+#    servicePort: 80
