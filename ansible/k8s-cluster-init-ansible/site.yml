@@ -462,6 +462,21 @@
   tags:
     - kyverno
 
+- name: Install Kiali
+  hosts: all
+  become: true
+  roles:
+    - role: kiali
+  tags:
+    - kiali
+
+- name: Install Tempo
+  hosts: all
+  become: true
+  roles:
+    - role: tempo
+  tags:
+    - tempo
 # =========================
 # Kyverno Baseline Policies
 # 默认 Audit，不拦截

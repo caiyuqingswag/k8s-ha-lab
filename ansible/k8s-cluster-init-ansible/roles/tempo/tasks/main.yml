@@ -1,0 +1,166 @@
+﻿---
+# =========================
+# Install Grafana Tempo
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Tempo working directory exists
+  ansible.builtin.file:
+    path: "{{ tempo_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Tempo Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ tempo_chart_archive }}"
+    dest: "{{ tempo_work_dir }}/{{ tempo_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Tempo values.yaml
+  ansible.builtin.template:
+    src: tempo-values.yaml.j2
+    dest: "{{ tempo_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Grafana Tempo datasource
+  ansible.builtin.template:
+    src: grafana-datasource-tempo.yaml.j2
+    dest: "{{ tempo_work_dir }}/grafana-datasource-tempo.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: tempo_apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: tempo_apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Tempo namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ tempo_namespace }}"
+  register: tempo_ns_create
+  failed_when:
+    - tempo_ns_create.rc != 0
+    - "'AlreadyExists' not in tempo_ns_create.stderr"
+  changed_when: tempo_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Tempo via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ tempo_release_name }}"
+      - "{{ tempo_work_dir }}/{{ tempo_chart_archive }}"
+      - --namespace
+      - "{{ tempo_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ tempo_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ tempo_helm_timeout }}"
+      - --wait
+  register: tempo_helm_result
+  changed_when: "'has been upgraded' in tempo_helm_result.stdout or 'has been installed' in tempo_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Tempo Helm result
+  ansible.builtin.debug:
+    msg: "{{ tempo_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Grafana Tempo datasource
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ tempo_work_dir }}/grafana-datasource-tempo.yaml"
+  register: tempo_grafana_datasource_apply
+  changed_when: "'created' in tempo_grafana_datasource_apply.stdout or 'configured' in tempo_grafana_datasource_apply.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - tempo_create_grafana_datasource | bool
+
+- name: Wait for Tempo pod ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ tempo_namespace }}"
+      - wait
+      - --for=condition=Ready
+      - pod
+      - -l
+      - "app.kubernetes.io/instance={{ tempo_release_name }}"
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Tempo pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ tempo_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: tempo_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Tempo pods
+  ansible.builtin.debug:
+    msg: "{{ tempo_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Tempo services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ tempo_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: tempo_svcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Tempo services
+  ansible.builtin.debug:
+    msg: "{{ tempo_svcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

@@ -1,0 +1,61 @@
+﻿# ===============================
+# Grafana Tempo Helm values
+# Single binary mode
+# ===============================
+
+tempo:
+  retention: "{{ tempo_retention }}"
+  reportingEnabled: false
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:{{ tempo_otlp_grpc_port }}"
+        http:
+          endpoint: "0.0.0.0:{{ tempo_otlp_http_port }}"
+
+    jaeger:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:{{ tempo_jaeger_grpc_port }}"
+        thrift_http:
+          endpoint: "0.0.0.0:{{ tempo_jaeger_thrift_http_port }}"
+
+    zipkin:
+      endpoint: "0.0.0.0:{{ tempo_zipkin_port }}"
+
+  storage:
+    trace:
+      backend: local
+      wal:
+        path: /var/tempo/wal
+      local:
+        path: /var/tempo/traces
+
+server:
+  http_listen_port: {{ tempo_http_port }}
+
+persistence:
+  enabled: {{ tempo_persistence_enabled | bool | lower }}
+  storageClassName: "{{ tempo_storage_class }}"
+  accessModes:
+    - ReadWriteOnce
+  size: "{{ tempo_persistence_size }}"
+
+resources:
+  requests:
+    cpu: "{{ tempo_cpu_request }}"
+    memory: "{{ tempo_memory_request }}"
+  limits:
+    cpu: "{{ tempo_cpu_limit }}"
+    memory: "{{ tempo_memory_limit }}"
+
+service:
+  type: ClusterIP
+
+serviceMonitor:
+  enabled: {{ tempo_service_monitor_enabled | bool | lower }}
+  namespace: "{{ tempo_namespace }}"
+  labels:
+    release: kube-prometheus-stack

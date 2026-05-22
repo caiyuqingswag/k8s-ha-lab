@@ -1,0 +1,200 @@
+﻿---
+# =========================
+# Install Kiali Operator and Kiali CR
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Kiali working directory exists
+  ansible.builtin.file:
+    path: "{{ kiali_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Kiali Operator Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ kiali_operator_chart_archive }}"
+    dest: "{{ kiali_work_dir }}/{{ kiali_operator_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Kiali Operator values.yaml
+  ansible.builtin.template:
+    src: kiali-operator-values.yaml.j2
+    dest: "{{ kiali_work_dir }}/kiali-operator-values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Kiali CR manifest
+  ansible.builtin.template:
+    src: kiali-cr.yaml.j2
+    dest: "{{ kiali_work_dir }}/kiali-cr.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: kiali_apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: kiali_apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Kiali Operator namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ kiali_operator_namespace }}"
+  register: kiali_operator_ns_create
+  failed_when:
+    - kiali_operator_ns_create.rc != 0
+    - "'AlreadyExists' not in kiali_operator_ns_create.stderr"
+  changed_when: kiali_operator_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Ensure Kiali instance namespace exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ kiali_instance_namespace }}"
+  register: kiali_instance_ns_create
+  failed_when:
+    - kiali_instance_ns_create.rc != 0
+    - "'AlreadyExists' not in kiali_instance_ns_create.stderr"
+  changed_when: kiali_instance_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Kiali Operator
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ kiali_operator_release_name }}"
+      - "{{ kiali_work_dir }}/{{ kiali_operator_chart_archive }}"
+      - --namespace
+      - "{{ kiali_operator_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ kiali_work_dir }}/kiali-operator-values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ kiali_helm_timeout }}"
+      - --wait
+  register: kiali_operator_helm_result
+  changed_when: "'has been upgraded' in kiali_operator_helm_result.stdout or 'has been installed' in kiali_operator_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Kiali Operator Helm result
+  ansible.builtin.debug:
+    msg: "{{ kiali_operator_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Kiali CRD
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - crd
+      - kialis.kiali.io
+  register: kiali_crd_check
+  retries: 60
+  delay: 5
+  until: kiali_crd_check.rc == 0
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Kiali CR
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ kiali_work_dir }}/kiali-cr.yaml"
+  register: kiali_cr_apply
+  changed_when: "'created' in kiali_cr_apply.stdout or 'configured' in kiali_cr_apply.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Kiali CR apply result
+  ansible.builtin.debug:
+    msg: "{{ kiali_cr_apply.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Kiali deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ kiali_instance_namespace }}"
+      - rollout
+      - status
+      - deploy/kiali
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Kiali pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ kiali_instance_namespace }}"
+      - get
+      - pods
+      - -l
+      - app.kubernetes.io/name=kiali
+      - -o
+      - wide
+  register: kiali_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Kiali pods
+  ansible.builtin.debug:
+    msg: "{{ kiali_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Kiali service
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ kiali_instance_namespace }}"
+      - get
+      - svc
+      - kiali
+      - -o
+      - wide
+  register: kiali_svc
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Kiali service
+  ansible.builtin.debug:
+    msg: "{{ kiali_svc.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

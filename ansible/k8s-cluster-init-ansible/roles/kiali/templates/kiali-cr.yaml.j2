@@ -1,0 +1,55 @@
+﻿{% if kiali_enabled | bool %}
+---
+apiVersion: kiali.io/v1alpha1
+kind: Kiali
+metadata:
+  name: {{ kiali_instance_name }}
+  namespace: {{ kiali_instance_namespace }}
+spec:
+  version: default
+
+  auth:
+    strategy: "{{ kiali_auth_strategy }}"
+
+  deployment:
+    accessible_namespaces:
+      - "**"
+    namespace: {{ kiali_instance_namespace }}
+    instance_name: {{ kiali_instance_name }}
+    resources:
+      requests:
+        cpu: "{{ kiali_cpu_request }}"
+        memory: "{{ kiali_memory_request }}"
+      limits:
+        cpu: "{{ kiali_cpu_limit }}"
+        memory: "{{ kiali_memory_limit }}"
+
+  server:
+    web_root: /
+    port: 20001
+    observability:
+      metrics:
+        enabled: true
+
+  external_services:
+    istio:
+      root_namespace: {{ kiali_istio_namespace }}
+
+    prometheus:
+      url: "{{ kiali_prometheus_url }}"
+
+    grafana:
+      enabled: {{ kiali_grafana_enabled | bool | lower }}
+      in_cluster_url: "{{ kiali_grafana_internal_url }}"
+      url: "{{ kiali_grafana_external_url }}"
+
+{% if kiali_tracing_enabled | bool %}
+    tracing:
+      enabled: true
+      in_cluster_url: "{{ kiali_tracing_internal_url }}"
+      url: "{{ kiali_tracing_external_url }}"
+{% else %}
+    tracing:
+      enabled: false
+{% endif %}
+{% endif %}

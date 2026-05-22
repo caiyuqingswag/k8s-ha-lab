@@ -1,0 +1,56 @@
+﻿---
+# =========================
+# Grafana Tempo
+# Single binary tracing backend
+# =========================
+
+tempo_enabled: true
+
+tempo_namespace: "tracing"
+tempo_release_name: "tempo"
+tempo_chart_archive: "tempo-1.24.4.tgz"
+tempo_work_dir: "/etc/kubernetes/tempo"
+
+# 存储
+# 建议先用 longhorn；如果你想本地盘，就改 local-path
+tempo_storage_class: "{{ global_storage_class | default('longhorn') }}"
+tempo_persistence_enabled: true
+tempo_persistence_size: "50Gi"
+
+# Tempo HTTP 查询端口
+tempo_http_port: 3200
+
+# OTLP 接收端口
+tempo_otlp_grpc_port: 4317
+tempo_otlp_http_port: 4318
+
+# Jaeger / Zipkin 兼容端口
+tempo_jaeger_grpc_port: 14250
+tempo_jaeger_thrift_http_port: 14268
+tempo_zipkin_port: 9411
+
+# Trace 保留时间
+tempo_retention: "168h"
+
+# 资源
+tempo_cpu_request: "200m"
+tempo_memory_request: "512Mi"
+tempo_cpu_limit: "2"
+tempo_memory_limit: "2Gi"
+
+# ServiceMonitor
+tempo_service_monitor_enabled: true
+
+# Grafana datasource
+tempo_create_grafana_datasource: true
+tempo_grafana_namespace: "monitoring"
+tempo_grafana_datasource_name: "Tempo"
+tempo_grafana_datasource_uid: "tempo"
+
+# Loki datasource uid，用于 Grafana trace -> logs 联动
+tempo_loki_datasource_uid: "loki"
+
+# Prometheus datasource uid，用于 trace metrics 查询
+tempo_prometheus_datasource_uid: "prometheus"
+
+tempo_helm_timeout: "10m"
