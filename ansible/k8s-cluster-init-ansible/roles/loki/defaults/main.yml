@@ -28,8 +28,8 @@ loki_memory_limit: "2Gi"
 # Grafana Loki datasource
 loki_create_grafana_datasource: true
 loki_grafana_namespace: "monitoring"
-loki_grafana_datasource_name: "Loki"
-loki_grafana_datasource_uid: "loki"
+loki_grafana_datasource_name: "loki-prod-hz-01"
+loki_grafana_datasource_uid: "loki-prod-hz-01"
 
 # Loki Gateway 地址
 # 你的 loki-values.yaml.j2 里 gateway.enabled=true，所以优先用 loki-gateway

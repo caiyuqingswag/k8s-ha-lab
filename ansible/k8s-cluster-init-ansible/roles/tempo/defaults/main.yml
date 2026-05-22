@@ -44,8 +44,8 @@ tempo_service_monitor_enabled: true
 # Grafana datasource
 tempo_create_grafana_datasource: true
 tempo_grafana_namespace: "monitoring"
-tempo_grafana_datasource_name: "Tempo"
-tempo_grafana_datasource_uid: "tempo"
+tempo_grafana_datasource_name: "tempo-prod-hz-01"
+tempo_grafana_datasource_uid: "tempo-prod-hz-01"
 
 # Loki datasource uid，用于 Grafana trace -> logs 联动
 tempo_loki_datasource_uid: "loki"
