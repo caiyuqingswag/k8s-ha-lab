@@ -1,6 +1,7 @@
 ﻿# ===============================
 # Grafana Tempo Helm values
 # Single binary mode
+# With metrics-generator for Service Graph
 # ===============================
 
 tempo:
@@ -32,6 +33,29 @@ tempo:
         path: /var/tempo/wal
       local:
         path: /var/tempo/traces
+
+{% if tempo_metrics_generator_enabled | bool %}
+  metrics_generator:
+    registry:
+      external_labels:
+        source: tempo
+        cluster: "{{ tempo_cluster_name }}"
+    storage:
+      path: /var/tempo/generator/wal
+      remote_write:
+        - url: "{{ tempo_prometheus_remote_write_url }}"
+          send_exemplars: true
+    processor:
+      service_graphs: {}
+      span_metrics: {}
+
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+          - span-metrics
+{% endif %}
 
 server:
   http_listen_port: {{ tempo_http_port }}

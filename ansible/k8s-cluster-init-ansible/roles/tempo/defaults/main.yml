@@ -54,3 +54,9 @@ tempo_loki_datasource_uid: "loki"
 tempo_prometheus_datasource_uid: "prometheus-prod-hz-01"
 
 tempo_helm_timeout: "10m"
+
+tempo_metrics_generator_enabled: true
+tempo_cluster_name: "prod-hz-01"
+# Prometheus remote write 地址
+# 前提：kube-prometheus-stack 已开启 enableRemoteWriteReceiver: true
+tempo_prometheus_remote_write_url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"

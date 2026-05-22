@@ -41,6 +41,7 @@ alertmanager:
 prometheus:
   enabled: true
   prometheusSpec:
+    enableRemoteWriteReceiver: true
     replicas: {{ prometheus_replicas }}
     retention: "{{ prometheus_retention }}"
 
