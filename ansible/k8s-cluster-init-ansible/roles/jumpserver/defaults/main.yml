@@ -1,79 +1,131 @@
 ﻿---
 # =========================
-# JumpServer Helm install
-# Small single-instance mode
+# JumpServer
+# Bastion host / PAM platform
+# Helm offline install
 # =========================
+
+jumpserver_enabled: true
 
 jumpserver_namespace: "jumpserver"
-jumpserver_release_name: "jumpserver"
-jumpserver_chart_archive: "jumpserver-3.6.0.tgz"
+jumpserver_release_name: "jms-k8s"
+jumpserver_chart_archive: "jumpserver-v4.10.16.tgz"
 jumpserver_work_dir: "/etc/kubernetes/jumpserver"
 
+# Web 访问域名
 jumpserver_hostname: "jumpserver.itexcloud.com"
 
-# 以后不要随便改，改了会导致已加密数据不可用
-jumpserver_secret_key: "veYIk6OW1W9OnSF2pcsNGTiGH3Mihpgo3TT3TxUlQ4ABCDEF"
-jumpserver_bootstrap_token: "JMSBootstrapToken2026ABCDEF"
+# 关闭 Helm Chart 自带 Ingress
+# 统一走 Istio internal gateway
+jumpserver_ingress_enabled: false
 
+# 镜像
 jumpserver_image_registry: "docker.io"
+jumpserver_image_owner: "jumpserver"
 
-# JumpServer 这种平台应用建议用 longhorn，不建议 local-path
-jumpserver_storage_class: "local-path"
-
-# =========================
-# Built-in MySQL
-# =========================
-jumpserver_builtin_mysql_enabled: true
-jumpserver_mysql_name: "jumpserver-mysql"
-jumpserver_mysql_image: "mysql:8.0"
-jumpserver_mysql_database: "jumpserver"
-jumpserver_mysql_user: "jumpserver"
-jumpserver_mysql_password: "ChangeMeMysql2026"
-jumpserver_mysql_root_password: "ChangeMeMysqlRoot2026"
-jumpserver_mysql_storage_size: "20Gi"
+# 存储
+# 单体模式建议 RWO 即可
+jumpserver_storage_class: "{{ global_storage_class | default('longhorn') }}"
+jumpserver_access_mode: "ReadWriteOnce"
 
 # =========================
-# Built-in Redis
+# External PostgreSQL
+# JumpServer chart 不会自动创建数据库
+# 需要提前准备 PostgreSQL
 # =========================
-jumpserver_builtin_redis_enabled: true
-jumpserver_redis_name: "jumpserver-redis"
-jumpserver_redis_image: "redis:7.2-alpine"
-jumpserver_redis_password: "ChangeMeRedis2026"
-jumpserver_redis_storage_size: "5Gi"
+
+jumpserver_external_database_engine: "postgresql"
+jumpserver_external_database_host: "postgresql.database.svc.cluster.local"
+jumpserver_external_database_port: 5432
+jumpserver_external_database_user: "jumpserver"
+jumpserver_external_database_password: "ChangeMe_Postgres_Password"
+jumpserver_external_database_name: "jumpserver"
 
 # =========================
-# External MySQL / Redis switch
+# External Redis
+# JumpServer chart 不会自动创建 Redis
+# 需要提前准备 Redis
 # =========================
-jumpserver_external_mysql_enabled: false
-jumpserver_external_mysql_host: ""
-jumpserver_external_mysql_port: 3306
 
-jumpserver_external_redis_enabled: false
-jumpserver_external_redis_host: ""
+jumpserver_external_redis_host: "redis.database.svc.cluster.local"
 jumpserver_external_redis_port: 6379
+jumpserver_external_redis_password: "ChangeMe_Redis_Password"
 
 # =========================
-# JumpServer components
+# Core secret
+# 生产建议放到 ansible-vault
+# secretKey 建议 50 位随机字符串
+# bootstrapToken 建议 24 位随机字符串
 # =========================
 
-jumpserver_core_enabled: true
-jumpserver_web_enabled: true
-jumpserver_celery_enabled: true
-jumpserver_koko_enabled: true
-jumpserver_lion_enabled: true
+jumpserver_core_secret_key: "ChangeMeJumpServerSecretKey1234567890ChangeMeJumpServer"
+jumpserver_core_bootstrap_token: "ChangeMeBootstrapToken2026"
 
-# 小规模堡垒机先关闭
-jumpserver_magnus_enabled: false
-jumpserver_chen_enabled: false
-jumpserver_kael_enabled: false
+# CSRF_TRUSTED_ORIGINS / DOMAINS
+# 如果走 HTTPS 域名访问，建议包含域名
+jumpserver_core_domains: "jumpserver.itexcloud.com"
 
-jumpserver_core_replica_count: 1
-jumpserver_web_replica_count: 1
-jumpserver_celery_replica_count: 1
-jumpserver_koko_replica_count: 1
-jumpserver_lion_replica_count: 1
+# Web 是否在 LB 后面
+# 你这里是 CLB -> Istio Gateway -> JumpServer，所以建议 1
+jumpserver_web_use_lb: "1"
 
-# 关闭 web logs PVC，避免 local-path/多 PVC 卡住
-jumpserver_web_persistence_enabled: false
+# =========================
+# Components
+# 单体轻量部署：全部 1 副本
+# =========================
+
+jumpserver_core_replicas: 1
+jumpserver_web_replicas: 1
+jumpserver_koko_replicas: 1
+jumpserver_lion_replicas: 1
+jumpserver_chen_replicas: 1
+
+# XPack 先关闭
+jumpserver_xpack_enabled: false
+
+# =========================
+# PVC size
+# =========================
+
+jumpserver_core_persistence_size: "50Gi"
+jumpserver_web_persistence_size: "5Gi"
+jumpserver_koko_persistence_size: "10Gi"
+jumpserver_lion_persistence_size: "20Gi"
+jumpserver_chen_persistence_size: "10Gi"
+
+# =========================
+# Resources
+# =========================
+
+jumpserver_core_cpu_request: "500m"
+jumpserver_core_memory_request: "1Gi"
+jumpserver_core_cpu_limit: "2"
+jumpserver_core_memory_limit: "4Gi"
+
+jumpserver_web_cpu_request: "100m"
+jumpserver_web_memory_request: "256Mi"
+jumpserver_web_cpu_limit: "1"
+jumpserver_web_memory_limit: "1Gi"
+
+jumpserver_koko_cpu_request: "100m"
+jumpserver_koko_memory_request: "256Mi"
+jumpserver_koko_cpu_limit: "1"
+jumpserver_koko_memory_limit: "1Gi"
+
+jumpserver_lion_cpu_request: "100m"
+jumpserver_lion_memory_request: "512Mi"
+jumpserver_lion_cpu_limit: "1"
+jumpserver_lion_memory_limit: "2Gi"
+
+jumpserver_chen_cpu_request: "100m"
+jumpserver_chen_memory_request: "256Mi"
+jumpserver_chen_cpu_limit: "1"
+jumpserver_chen_memory_limit: "1Gi"
 
 jumpserver_helm_timeout: "20m"
+
+# Web Service 名称
+# release=jms-k8s，chart=jumpserver，所以 fullname=jms-k8s-jumpserver
+# web svc = jms-k8s-jumpserver-jms-web
+jumpserver_web_service_name: "jms-k8s-jumpserver-jms-web"
+jumpserver_web_service_port: 80
