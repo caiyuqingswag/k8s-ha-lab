@@ -43,6 +43,12 @@ istio_internal_routes:
     serviceHost: kiali.istio-system.svc.cluster.local
     servicePort: 20001
 
+  - name: jumpserver
+    namespace: jumpserver
+    host: jumpserver.itexcloud.com
+    serviceHost: jms-k8s-jumpserver-jms-web.jumpserver.svc.cluster.local
+    servicePort: 80
+
 #  - name: longhorn
 #    namespace: longhorn-system
 #    host: longhorn.itexcloud.com
