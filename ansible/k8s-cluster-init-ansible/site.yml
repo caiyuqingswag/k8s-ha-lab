@@ -490,6 +490,15 @@
   tags:
     - kyverno-policies
 
+- name: Install Verdaccio npm registry
+  hosts: all
+  become: true
+  roles:
+    - role: verdaccio
+  tags:
+    - verdaccio
+
+
 - name: Install Trivy Operator
   hosts: all
   become: true
