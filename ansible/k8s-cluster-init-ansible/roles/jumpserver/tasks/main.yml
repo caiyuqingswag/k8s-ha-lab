@@ -1,6 +1,7 @@
 ﻿---
 # =========================
 # Install JumpServer by offline Helm chart
+# with embedded PostgreSQL + Redis
 # Run from first master only
 # =========================
 
@@ -25,6 +26,13 @@
     mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
+- name: Render JumpServer deps manifest
+  ansible.builtin.template:
+    src: jumpserver-deps.yaml.j2
+    dest: "{{ jumpserver_work_dir }}/jumpserver-deps.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
 - name: Render JumpServer values.yaml
   ansible.builtin.template:
     src: jumpserver-values.yaml.j2
@@ -46,20 +54,54 @@
   until: jumpserver_apiserver_ready.rc == 0
   when: inventory_hostname == groups['masters'][0]
 
-- name: Create JumpServer namespace
+- name: Apply JumpServer dependencies PostgreSQL and Redis
   ansible.builtin.command:
     argv:
       - kubectl
       - --kubeconfig=/etc/kubernetes/admin.conf
-      - create
-      - namespace
-      - "{{ jumpserver_namespace }}"
-  register: jumpserver_ns_create
-  failed_when:
-    - jumpserver_ns_create.rc != 0
-    - "'AlreadyExists' not in jumpserver_ns_create.stderr"
-  changed_when: jumpserver_ns_create.rc == 0
+      - apply
+      - -f
+      - "{{ jumpserver_work_dir }}/jumpserver-deps.yaml"
+  register: jumpserver_deps_apply
+  changed_when: "'created' in jumpserver_deps_apply.stdout or 'configured' in jumpserver_deps_apply.stdout"
   when: inventory_hostname == groups['masters'][0]
+
+- name: Show JumpServer deps apply result
+  ansible.builtin.debug:
+    msg: "{{ jumpserver_deps_apply.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for embedded PostgreSQL ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - rollout
+      - status
+      - deploy/{{ jumpserver_postgresql_name }}
+      - --timeout=10m
+  changed_when: false
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - jumpserver_postgresql_enabled | bool
+
+- name: Wait for embedded Redis ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - rollout
+      - status
+      - deploy/{{ jumpserver_redis_name }}
+      - --timeout=10m
+  changed_when: false
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - jumpserver_redis_enabled | bool
 
 - name: Install or upgrade JumpServer via Helm
   ansible.builtin.command:

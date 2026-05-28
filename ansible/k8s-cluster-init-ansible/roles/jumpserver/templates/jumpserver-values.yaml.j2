@@ -141,5 +141,11 @@ chen:
       - "{{ jumpserver_access_mode }}"
     size: "{{ jumpserver_chen_persistence_size }}"
 
+magnus:
+  enabled: {{ jumpserver_magnus_enabled | bool | lower }}
+
+razor:
+  enabled: {{ jumpserver_razor_enabled | bool | lower }}
+
 xpack:
   enabled: {{ jumpserver_xpack_enabled | bool | lower }}

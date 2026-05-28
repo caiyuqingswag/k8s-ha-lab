@@ -1,8 +1,7 @@
 ﻿---
 # =========================
 # JumpServer
-# Bastion host / PAM platform
-# Helm offline install
+# Helm offline install with embedded PostgreSQL + Redis
 # =========================
 
 jumpserver_enabled: true
@@ -12,66 +11,70 @@ jumpserver_release_name: "jms-k8s"
 jumpserver_chart_archive: "jumpserver-v4.10.16.tgz"
 jumpserver_work_dir: "/etc/kubernetes/jumpserver"
 
-# Web 访问域名
 jumpserver_hostname: "jumpserver.itexcloud.com"
-
-# 关闭 Helm Chart 自带 Ingress
-# 统一走 Istio internal gateway
 jumpserver_ingress_enabled: false
 
-# 镜像
 jumpserver_image_registry: "docker.io"
 jumpserver_image_owner: "jumpserver"
 
-# 存储
-# 单体模式建议 RWO 即可
 jumpserver_storage_class: "{{ global_storage_class | default('longhorn') }}"
 jumpserver_access_mode: "ReadWriteOnce"
 
 # =========================
-# External PostgreSQL
-# JumpServer chart 不会自动创建数据库
-# 需要提前准备 PostgreSQL
+# Embedded PostgreSQL
+# =========================
+
+jumpserver_postgresql_enabled: true
+jumpserver_postgresql_name: "jumpserver-postgresql"
+jumpserver_postgresql_image: "postgres:16-alpine"
+jumpserver_postgresql_port: 5432
+jumpserver_postgresql_database: "jumpserver"
+jumpserver_postgresql_user: "jumpserver"
+jumpserver_postgresql_password: "ChangeMe_Postgres_Password"
+jumpserver_postgresql_pvc_size: "20Gi"
+
+# =========================
+# Embedded Redis
+# =========================
+
+jumpserver_redis_enabled: true
+jumpserver_redis_name: "jumpserver-redis"
+jumpserver_redis_image: "redis:7.2-alpine"
+jumpserver_redis_port: 6379
+jumpserver_redis_password: "ChangeMe_Redis_Password"
+jumpserver_redis_pvc_size: "5Gi"
+
+# =========================
+# JumpServer external deps config
+# 实际上是 namespace 内置 PostgreSQL / Redis
+# 但对 JumpServer Chart 来说仍然按 externalDatabase/externalRedis 传入
 # =========================
 
 jumpserver_external_database_engine: "postgresql"
-jumpserver_external_database_host: "postgresql.database.svc.cluster.local"
+jumpserver_external_database_host: "{{ jumpserver_postgresql_name }}.{{ jumpserver_namespace }}.svc.cluster.local"
 jumpserver_external_database_port: 5432
-jumpserver_external_database_user: "jumpserver"
-jumpserver_external_database_password: "ChangeMe_Postgres_Password"
-jumpserver_external_database_name: "jumpserver"
+jumpserver_external_database_user: "{{ jumpserver_postgresql_user }}"
+jumpserver_external_database_password: "{{ jumpserver_postgresql_password }}"
+jumpserver_external_database_name: "{{ jumpserver_postgresql_database }}"
 
-# =========================
-# External Redis
-# JumpServer chart 不会自动创建 Redis
-# 需要提前准备 Redis
-# =========================
-
-jumpserver_external_redis_host: "redis.database.svc.cluster.local"
+jumpserver_external_redis_host: "{{ jumpserver_redis_name }}.{{ jumpserver_namespace }}.svc.cluster.local"
 jumpserver_external_redis_port: 6379
-jumpserver_external_redis_password: "ChangeMe_Redis_Password"
+jumpserver_external_redis_password: "{{ jumpserver_redis_password }}"
 
 # =========================
 # Core secret
-# 生产建议放到 ansible-vault
-# secretKey 建议 50 位随机字符串
-# bootstrapToken 建议 24 位随机字符串
+# 生产建议后续放 ansible-vault
 # =========================
 
 jumpserver_core_secret_key: "ChangeMeJumpServerSecretKey1234567890ChangeMeJumpServer"
 jumpserver_core_bootstrap_token: "ChangeMeBootstrapToken2026"
 
-# CSRF_TRUSTED_ORIGINS / DOMAINS
-# 如果走 HTTPS 域名访问，建议包含域名
 jumpserver_core_domains: "jumpserver.itexcloud.com"
-
-# Web 是否在 LB 后面
-# 你这里是 CLB -> Istio Gateway -> JumpServer，所以建议 1
 jumpserver_web_use_lb: "1"
 
 # =========================
 # Components
-# 单体轻量部署：全部 1 副本
+# 单体轻量部署
 # =========================
 
 jumpserver_core_replicas: 1
@@ -79,8 +82,8 @@ jumpserver_web_replicas: 1
 jumpserver_koko_replicas: 1
 jumpserver_lion_replicas: 1
 jumpserver_chen_replicas: 1
-
-# XPack 先关闭
+jumpserver_magnus_enabled: false
+jumpserver_razor_enabled: false
 jumpserver_xpack_enabled: false
 
 # =========================
@@ -124,8 +127,5 @@ jumpserver_chen_memory_limit: "1Gi"
 
 jumpserver_helm_timeout: "20m"
 
-# Web Service 名称
-# release=jms-k8s，chart=jumpserver，所以 fullname=jms-k8s-jumpserver
-# web svc = jms-k8s-jumpserver-jms-web
 jumpserver_web_service_name: "jms-k8s-jumpserver-jms-web"
 jumpserver_web_service_port: 80
