@@ -47,7 +47,7 @@ extraEnvVars:
   - name: VERDACCIO_PORT
     value: "{{ verdaccio_service_port }}"
   - name: VERDACCIO_PUBLIC_URL
-    value: "https://{{ verdaccio_hostname }}"
+    value: "http://{{ verdaccio_hostname }}"
 
 # 使用 chart 生成 htpasswd
 useSecretHtpasswd: true
