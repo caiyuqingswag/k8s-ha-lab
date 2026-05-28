@@ -1,0 +1,68 @@
+﻿---
+# =========================
+# Verdaccio npm private registry
+# =========================
+
+verdaccio_enabled: true
+
+verdaccio_namespace: "npm-registry"
+verdaccio_release_name: "npm"
+verdaccio_chart_archive: "verdaccio-4.31.0.tgz"
+verdaccio_work_dir: "/etc/kubernetes/verdaccio"
+
+# 访问域名
+verdaccio_hostname: "npm.itexcloud.com"
+
+# 不用 chart 自带 ingress，统一走 Istio internal gateway
+verdaccio_ingress_enabled: false
+
+# 镜像
+verdaccio_image_repository: "verdaccio/verdaccio"
+verdaccio_image_tag: ""
+
+# Service
+verdaccio_service_type: "ClusterIP"
+verdaccio_service_port: 4873
+
+# 存储
+verdaccio_persistence_enabled: true
+verdaccio_storage_class: "{{ global_storage_class | default('longhorn') }}"
+verdaccio_persistence_size: "50Gi"
+verdaccio_persistence_access_mode: "ReadWriteOnce"
+verdaccio_persistence_resource_policy: "keep"
+
+# 上游 npm 源
+# 如果你的服务器访问 npmjs 慢，可以用 npmmirror
+#verdaccio_uplink_registry: "https://registry.npmmirror.com/"
+verdaccio_uplink_registry: "https://registry.npmjs.org/"
+
+# Web 标题
+verdaccio_web_title: "ITEX NPM Registry"
+
+# 是否允许注册新用户
+# -1 表示禁止用户自己注册
+verdaccio_max_users: -1
+
+# 默认账号
+# 生产建议后续改成 ansible-vault
+verdaccio_users:
+  - username: "admin"
+    password: "Admin@123456"
+
+# 权限策略
+# access: 所有人可下载
+# publish: 只有认证用户可发布
+verdaccio_allow_anonymous_access: true
+verdaccio_publish_authenticated_only: true
+
+# 资源
+verdaccio_cpu_request: "100m"
+verdaccio_memory_request: "656Mi"
+verdaccio_cpu_limit: "1"
+verdaccio_memory_limit: "2Gi"
+
+verdaccio_helm_timeout: "10m"
+
+# Chart service 名称
+# release=npm chart=verdaccio，所以 service 一般是 npm-verdaccio
+verdaccio_service_name: "npm-verdaccio"

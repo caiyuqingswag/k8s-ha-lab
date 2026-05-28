@@ -1,0 +1,161 @@
+﻿---
+# =========================
+# Install Verdaccio npm registry
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Verdaccio working directory exists
+  ansible.builtin.file:
+    path: "{{ verdaccio_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Verdaccio Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ verdaccio_chart_archive }}"
+    dest: "{{ verdaccio_work_dir }}/{{ verdaccio_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Verdaccio values.yaml
+  ansible.builtin.template:
+    src: verdaccio-values.yaml.j2
+    dest: "{{ verdaccio_work_dir }}/values.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: verdaccio_apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: verdaccio_apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Verdaccio namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ verdaccio_namespace }}"
+  register: verdaccio_ns_create
+  failed_when:
+    - verdaccio_ns_create.rc != 0
+    - "'AlreadyExists' not in verdaccio_ns_create.stderr"
+  changed_when: verdaccio_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Verdaccio via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ verdaccio_release_name }}"
+      - "{{ verdaccio_work_dir }}/{{ verdaccio_chart_archive }}"
+      - --namespace
+      - "{{ verdaccio_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ verdaccio_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ verdaccio_helm_timeout }}"
+      - --wait
+  register: verdaccio_helm_result
+  changed_when: "'has been upgraded' in verdaccio_helm_result.stdout or 'has been installed' in verdaccio_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Verdaccio Helm result
+  ansible.builtin.debug:
+    msg: "{{ verdaccio_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Verdaccio deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ verdaccio_namespace }}"
+      - rollout
+      - status
+      - deploy/{{ verdaccio_service_name }}
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Verdaccio pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ verdaccio_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: verdaccio_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Verdaccio pods
+  ansible.builtin.debug:
+    msg: "{{ verdaccio_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Verdaccio services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ verdaccio_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: verdaccio_svcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Verdaccio services
+  ansible.builtin.debug:
+    msg: "{{ verdaccio_svcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Verdaccio PVC
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ verdaccio_namespace }}"
+      - get
+      - pvc
+  register: verdaccio_pvcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Verdaccio PVC
+  ansible.builtin.debug:
+    msg: "{{ verdaccio_pvcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
