@@ -68,6 +68,8 @@ configMap: |
   auth:
     htpasswd:
       file: /verdaccio/storage/htpasswd
+      algorithm: bcrypt
+      rounds: 10
       max_users: {{ verdaccio_max_users }}
 
   uplinks:
