@@ -49,6 +49,13 @@ istio_internal_routes:
     serviceHost: jms-k8s-jumpserver-jms-web.jumpserver.svc.cluster.local
     servicePort: 80
 
+  - name: verdaccio
+    namespace: npm-registry
+    host: npm.itexcloud.com
+    serviceHost: npm-verdaccio.npm-registry.svc.cluster.local
+    servicePort: 4873
+
+
 #  - name: longhorn
 #    namespace: longhorn-system
 #    host: longhorn.itexcloud.com
