@@ -1,0 +1,6 @@
+---
+crictl_version: "v1.34.0"
+crictl_archive: "crictl-v1.34.0-linux-amd64.tar.gz"
+
+containerd_pull_pause_test: true
+containerd_pause_image: "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.10.1"

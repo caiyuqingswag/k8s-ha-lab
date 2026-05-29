@@ -1,0 +1,65 @@
+﻿---
+# =========================
+# Apply Istio AuthorizationPolicy
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Istio authz policies working directory exists
+  ansible.builtin.file:
+    path: "{{ istio_authz_policies_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Istio AuthorizationPolicies
+  ansible.builtin.template:
+    src: authorization-policies.yaml.j2
+    dest: "{{ istio_authz_policies_work_dir }}/authorization-policies.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check AuthorizationPolicy CRD exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - crd
+      - authorizationpolicies.security.istio.io
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Istio AuthorizationPolicies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ istio_authz_policies_work_dir }}/authorization-policies.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Istio AuthorizationPolicies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - authorizationpolicy
+      - -A
+  register: istio_authz_policies_result
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Istio AuthorizationPolicies
+  ansible.builtin.debug:
+    msg: "{{ istio_authz_policies_result.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

@@ -1,0 +1,41 @@
+﻿# ===============================
+# Istio east-west gateway
+# For future multi-primary multi-network
+# ===============================
+
+name: istio-eastwestgateway
+
+labels:
+  app: istio-eastwestgateway
+  istio: eastwestgateway
+  topology.istio.io/network: "{{ istio_network_name }}"
+
+replicaCount: {{ istio_eastwest_gateway_replicas }}
+
+service:
+  type: NodePort
+
+  ports:
+    - name: status-port
+      port: 15021
+      targetPort: 15021
+      nodePort: {{ istio_eastwest_status_nodeport }}
+      protocol: TCP
+
+    - name: tls
+      port: 15443
+      targetPort: 15443
+      nodePort: {{ istio_eastwest_tls_nodeport }}
+      protocol: TCP
+
+env:
+  ISTIO_META_ROUTER_MODE: "sni-dnat"
+  ISTIO_META_REQUESTED_NETWORK_VIEW: "{{ istio_network_name }}"
+
+resources:
+  requests:
+    cpu: "{{ istio_gateway_cpu_request }}"
+    memory: "{{ istio_gateway_memory_request }}"
+  limits:
+    cpu: "{{ istio_gateway_cpu_limit }}"
+    memory: "{{ istio_gateway_memory_limit }}"

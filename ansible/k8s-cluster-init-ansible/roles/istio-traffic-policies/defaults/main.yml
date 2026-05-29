@@ -1,0 +1,215 @@
+﻿---
+# 这个目录是 Ansible 渲染后的 Istio 流量治理 YAML 保存位置
+istio_traffic_policies_work_dir: "/etc/kubernetes/istio-traffic-policies"
+
+# 每个元素代表一个服务的流量治理配置
+istio_traffic_policies:
+
+  # =========================
+  # 服务 1：decision-flow-web
+  # =========================
+  - name: decision-flow-web
+
+    # 这个服务所在 namespace
+    namespace: prod-paas-components
+
+    # 目标服务的完整 Kubernetes DNS
+    # Istio DestinationRule / VirtualService 都基于这个 host 做服务治理
+    host: decision-flow-web.prod-paas-components.svc.cluster.local
+
+    # 服务端口
+    port: 80
+
+    # subsets 是版本分组
+    # 要求 Pod 上有对应 label，例如 version=v1 / version=v2
+    # 用于灰度发布、按版本路由
+    subsets:
+      - name: v1
+        labels:
+          version: v1
+      - name: v2
+        labels:
+          version: v2
+
+    # 灰度配置
+    canary:
+      # 是否开启入口灰度
+      enabled: true
+
+      # 外部访问域名
+      # 这个 host 会出现在 VirtualService.hosts 里
+      gatewayHost: decision.itexcloud.com
+
+      # 使用哪个 Istio Gateway
+      # public 入口一般用 istio-ingress-public/public-gateway
+      gatewayRef: istio-ingress-public/public-gateway
+
+      # 流量权重
+      # 这里表示 90% 到 v1，10% 到 v2
+      weights:
+        - subset: v1
+          weight: 90
+        - subset: v2
+          weight: 10
+
+    # 稳定性治理：超时、重试、熔断、异常摘除
+    resilience:
+      enabled: true
+
+      # 单次请求总超时时间
+      # 超过 3 秒直接返回超时，避免调用链被拖死
+      timeout: 3s
+
+      # 重试策略
+      retries:
+        # 最多重试 3 次
+        attempts: 3
+
+        # 每次重试最多等 1 秒
+        perTryTimeout: 1s
+
+        # 哪些错误触发重试
+        # 5xx：服务端错误
+        # connect-failure：连接失败
+        # refused-stream：上游拒绝流
+        retryOn: 5xx,connect-failure,refused-stream
+
+      # 连接池 / 并发保护
+      connectionPool:
+        # 最大 TCP 连接数
+        tcpMaxConnections: 100
+
+        # HTTP 最大排队请求数
+        # 超过后会快速失败，避免请求堆积拖垮服务
+        http1MaxPendingRequests: 100
+
+        # 每个连接最多处理多少请求
+        # 可以避免长连接过度复用导致问题
+        maxRequestsPerConnection: 10
+
+      # 异常实例摘除，类似熔断
+      outlierDetection:
+        # 连续 5 次 5xx 后认为该实例异常
+        consecutive5xxErrors: 5
+
+        # 每 10 秒检测一次
+        interval: 10s
+
+        # 异常实例踢出 30 秒
+        baseEjectionTime: 30s
+
+        # 最多踢出 50% 实例
+        maxEjectionPercent: 50
+
+
+  # =========================
+  # 服务 2：order-api
+  # =========================
+  - name: order-api
+    namespace: prod-itex-servers
+    host: order-api.prod-itex-servers.svc.cluster.local
+    port: 80
+
+    # v1 / v2 版本分组
+    subsets:
+      - name: v1
+        labels:
+          version: v1
+      - name: v2
+        labels:
+          version: v2
+
+    # order.itexcloud.com 入口灰度
+    canary:
+      enabled: true
+      gatewayHost: order.itexcloud.com
+      gatewayRef: istio-ingress-public/public-gateway
+
+      # 95% 老版本，5% 新版本
+      weights:
+        - subset: v1
+          weight: 95
+        - subset: v2
+          weight: 5
+
+    resilience:
+      enabled: true
+
+      # order-api 要求更快失败，所以 timeout 比 decision-flow-web 短
+      timeout: 2s
+
+      retries:
+        # 最多重试 2 次
+        attempts: 2
+
+        # 每次最多 800ms
+        perTryTimeout: 800ms
+
+        retryOn: 5xx,connect-failure,refused-stream
+
+      connectionPool:
+        # order-api 并发高一些，所以连接池更大
+        tcpMaxConnections: 200
+        http1MaxPendingRequests: 200
+        maxRequestsPerConnection: 20
+
+      outlierDetection:
+        consecutive5xxErrors: 5
+        interval: 10s
+        baseEjectionTime: 30s
+
+        # 最多摘除 30%，更保守，避免实例太少时全被踢掉
+        maxEjectionPercent: 30
+
+
+  # =========================
+  # 服务 3：user-api
+  # =========================
+  - name: user-api
+    namespace: prod-itex-servers
+    host: user-api.prod-itex-servers.svc.cluster.local
+    port: 80
+
+    subsets:
+      - name: v1
+        labels:
+          version: v1
+      - name: v2
+        labels:
+          version: v2
+
+    canary:
+      enabled: true
+      gatewayHost: user.itexcloud.com
+      gatewayRef: istio-ingress-public/public-gateway
+
+      # 80% v1，20% v2
+      weights:
+        - subset: v1
+          weight: 80
+        - subset: v2
+          weight: 20
+
+    resilience:
+      enabled: true
+
+      # user-api 可能接口稍慢，所以 timeout 给 5 秒
+      timeout: 5s
+
+      retries:
+        attempts: 3
+        perTryTimeout: 1500ms
+        retryOn: 5xx,connect-failure,refused-stream
+
+      connectionPool:
+        # user-api 访问量可能较大，所以连接池更大
+        tcpMaxConnections: 300
+        http1MaxPendingRequests: 300
+        maxRequestsPerConnection: 50
+
+      outlierDetection:
+        # user-api 允许更多错误后再摘除，避免误判
+        consecutive5xxErrors: 7
+        interval: 10s
+        baseEjectionTime: 60s
+        maxEjectionPercent: 50

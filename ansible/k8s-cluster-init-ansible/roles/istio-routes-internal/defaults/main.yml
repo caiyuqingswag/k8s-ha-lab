@@ -1,0 +1,75 @@
+﻿---
+istio_routes_internal_work_dir: "/etc/kubernetes/istio-routes-internal"
+
+istio_internal_gateway_namespace: "istio-ingress-internal"
+istio_internal_gateway_name: "internal-gateway"
+istio_internal_gateway_selector:
+  istio: ingressgateway-internal
+
+istio_internal_routes:
+  - name: grafana
+    namespace: monitoring
+    host: grafana.itexcloud.com
+    serviceHost: grafana.monitoring.svc.cluster.local
+    servicePort: 80
+
+  - name: argocd
+    namespace: argocd
+    host: argocd.itexcloud.com
+    serviceHost: argocd-server.argocd.svc.cluster.local
+    servicePort: 80
+
+  - name: prometheus
+    namespace: monitoring
+    host: prometheus.itexcloud.com
+    serviceHost: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local
+    servicePort: 9090
+
+  - name: alertmanager
+    namespace: monitoring
+    host: alertmanager.itexcloud.com
+    serviceHost: kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local
+    servicePort: 9093
+
+  - name: alertmanager
+    namespace: monitoring
+    host: alertmanager.itexcloud.com
+    serviceHost: kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local
+    servicePort: 9093
+
+  - name: kiali
+    namespace: istio-system
+    host: kiali.itexcloud.com
+    serviceHost: kiali.istio-system.svc.cluster.local
+    servicePort: 20001
+
+  - name: jumpserver
+    namespace: jumpserver
+    host: jumpserver.itexcloud.com
+    serviceHost: jms-k8s-jumpserver-jms-web.jumpserver.svc.cluster.local
+    servicePort: 80
+
+  - name: verdaccio
+    namespace: npm-registry
+    host: npm.itexcloud.com
+    serviceHost: npm-verdaccio.npm-registry.svc.cluster.local
+    servicePort: 4873
+
+
+#  - name: longhorn
+#    namespace: longhorn-system
+#    host: longhorn.itexcloud.com
+#    serviceHost: longhorn-frontend.longhorn-system.svc.cluster.local
+#    servicePort: 80
+
+#  - name: rancher
+#    namespace: cattle-system
+#    host: rancher.itexcloud.com
+#    serviceHost: rancher.cattle-system.svc.cluster.local
+#    servicePort: 80
+
+#  - name: jumpserver
+#    namespace: jumpserver
+#    host: jumpserver.itexcloud.com
+#    serviceHost: jumpserver-jms-web.jumpserver.svc.cluster.local
+#    servicePort: 80

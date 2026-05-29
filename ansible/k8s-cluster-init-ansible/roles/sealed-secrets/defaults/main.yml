@@ -1,0 +1,14 @@
+﻿---
+sealed_secrets_version: "0.36.6"
+
+sealed_secrets_work_dir: "/etc/kubernetes/sealed-secrets"
+
+sealed_secrets_controller_manifest: "controller.yaml"
+
+sealed_secrets_namespace: "kube-system"
+sealed_secrets_controller_name: "sealed-secrets-controller"
+
+sealed_secrets_install_kubeseal: true
+sealed_secrets_kubeseal_archive: "kubeseal-0.36.6-linux-amd64.tar.gz"
+sealed_secrets_kubeseal_tmp_dir: "/tmp/kubeseal"
+sealed_secrets_kubeseal_bin: "/usr/local/bin/kubeseal"

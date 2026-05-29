@@ -1,0 +1,28 @@
+global_defs {
+   router_id {{ inventory_hostname }}
+}
+
+vrrp_script check_nginx {
+    script "/etc/keepalived/check_nginx.sh"
+}
+
+vrrp_instance VI_1 {
+    state {{ 'MASTER' if inventory_hostname in groups['lb_master'] else 'BACKUP' }}
+    interface {{ interface }}
+    virtual_router_id 51
+    priority {{ 100 if inventory_hostname in groups['lb_master'] else 90 }}
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+
+    virtual_ipaddress {
+        {{ vip }}
+    }
+
+    track_script {
+        check_nginx
+    }
+}

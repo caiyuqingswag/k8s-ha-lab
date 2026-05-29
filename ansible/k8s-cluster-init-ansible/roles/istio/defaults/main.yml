@@ -1,0 +1,120 @@
+﻿---
+# =========================
+# Istio version / charts
+# =========================
+
+istio_version: "1.29.2"
+
+istio_base_chart_archive: "base-1.29.2.tgz"
+istio_istiod_chart_archive: "istiod-1.29.2.tgz"
+istio_gateway_chart_archive: "gateway-1.29.2.tgz"
+
+istio_cli_archive: "istio-1.29.2-linux-amd64.tar.gz"
+istio_install_istioctl: true
+
+istio_work_dir: "/etc/kubernetes/istio"
+istio_tmp_dir: "/tmp/istio"
+istioctl_bin: "/usr/local/bin/istioctl"
+
+# =========================
+# Namespaces
+# =========================
+
+istio_system_namespace: "istio-system"
+
+istio_public_gateway_namespace: "istio-ingress-public"
+istio_internal_gateway_namespace: "istio-ingress-internal"
+istio_eastwest_gateway_namespace: "istio-eastwest"
+
+# =========================
+# Mesh identity
+# 单集群先这样，后续多集群时每个集群改 cluster/network
+# =========================
+
+istio_mesh_id: "prod-mesh"
+istio_cluster_name: "prod-hz-01"
+istio_network_name: "network-hz"
+istio_trust_domain: "cluster.local"
+
+# =========================
+# Sidecar injection
+# 先空着，不要全局开启
+# 后续只把业务 namespace 加进来
+# =========================
+
+istio_injection_namespaces:
+  - prod-itex-components
+  - prod-itex-servers
+  - prod-paas-components
+  - prod-srm-components
+  - stable-itex-components
+  - stable-itex-servers
+
+# =========================
+# Public gateway
+# 公网 CLB -> NodeIP:30080
+# =========================
+
+istio_public_gateway_enabled: true
+istio_public_gateway_release_name: "istio-ingressgateway-public"
+
+istio_public_http_nodeport: 30080
+istio_public_https_nodeport: 30443
+istio_public_status_nodeport: 31021
+
+istio_public_gateway_replicas: 2
+
+# =========================
+# Internal gateway
+# 内网/白名单 CLB -> NodeIP:30081
+# =========================
+
+istio_internal_gateway_enabled: true
+istio_internal_gateway_release_name: "istio-ingressgateway-internal"
+
+istio_internal_http_nodeport: 30081
+istio_internal_https_nodeport: 30444
+istio_internal_status_nodeport: 31022
+
+istio_internal_gateway_replicas: 2
+
+# =========================
+# East-west gateway
+# 单集群先 false
+# 后续多集群时改 true
+# =========================
+
+istio_enable_eastwest_gateway: false
+istio_eastwest_gateway_release_name: "istio-eastwestgateway"
+
+istio_eastwest_status_nodeport: 31521
+istio_eastwest_tls_nodeport: 31543
+istio_eastwest_gateway_replicas: 2
+
+# =========================
+# istiod resources
+# =========================
+
+istio_pilot_autoscale_enabled: true
+istio_pilot_autoscale_min: 2
+istio_pilot_autoscale_max: 5
+
+istio_pilot_cpu_request: "500m"
+istio_pilot_memory_request: "512Mi"
+istio_pilot_cpu_limit: "2"
+istio_pilot_memory_limit: "2Gi"
+
+# =========================
+# gateway resources
+# =========================
+
+istio_gateway_cpu_request: "100m"
+istio_gateway_memory_request: "128Mi"
+istio_gateway_cpu_limit: "2"
+istio_gateway_memory_limit: "1Gi"
+
+# =========================
+# Helm
+# =========================
+
+istio_helm_timeout: "10m"

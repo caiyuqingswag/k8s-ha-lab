@@ -1,0 +1,122 @@
+---
+# =========================
+# Install Longhorn by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Longhorn working directory exists
+  ansible.builtin.file:
+    path: "{{ longhorn_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Longhorn Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ longhorn_chart_archive }}"
+    dest: "{{ longhorn_work_dir }}/{{ longhorn_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Longhorn values.yaml
+  ansible.builtin.template:
+    src: longhorn-values.yaml.j2
+    dest: "{{ longhorn_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Longhorn namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ longhorn_namespace }}"
+  register: longhorn_ns_create
+  failed_when:
+    - longhorn_ns_create.rc != 0
+    - "'AlreadyExists' not in longhorn_ns_create.stderr"
+  changed_when: longhorn_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Longhorn via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - longhorn
+      - "{{ longhorn_work_dir }}/{{ longhorn_chart_archive }}"
+      - --namespace
+      - "{{ longhorn_namespace }}"
+      - -f
+      - "{{ longhorn_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ longhorn_helm_timeout }}"
+      - --wait
+  register: longhorn_helm_result
+  changed_when: "'has been upgraded' in longhorn_helm_result.stdout or 'has been installed' in longhorn_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Longhorn Helm result
+  ansible.builtin.debug:
+    msg: "{{ longhorn_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Longhorn manager DaemonSet
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ longhorn_namespace }}"
+      - rollout
+      - status
+      - ds/longhorn-manager
+      - --timeout=15m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Longhorn pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ longhorn_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: longhorn_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Longhorn pods
+  ansible.builtin.debug:
+    msg: "{{ longhorn_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

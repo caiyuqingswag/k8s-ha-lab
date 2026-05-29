@@ -1,0 +1,71 @@
+﻿# ===============================
+# Istio AuthorizationPolicy
+# 服务间访问控制
+# ===============================
+
+{% if istio_authz_enable_default_deny | bool %}
+{% for ns in istio_authz_default_deny_namespaces %}
+---
+# 默认拒绝该 namespace 下所有服务的入站流量
+# 注意：一旦开启，必须有对应 ALLOW 策略，否则服务会被访问失败
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: default-deny
+  namespace: {{ ns }}
+spec:
+  {}
+{% endfor %}
+{% endif %}
+
+{% for policy in istio_authz_allow_policies %}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ policy.name }}
+  namespace: {{ policy.namespace }}
+spec:
+  selector:
+    matchLabels:
+{% for k, v in policy.selectorLabels.items() %}
+      {{ k }}: {{ v }}
+{% endfor %}
+  action: ALLOW
+  rules:
+    - from:
+{% if policy.allowedFromNamespaces is defined and policy.allowedFromNamespaces | length > 0 %}
+{% for ns in policy.allowedFromNamespaces %}
+        - source:
+            namespaces:
+              - {{ ns }}
+{% endfor %}
+{% endif %}
+{% if policy.allowedFromPrincipals is defined and policy.allowedFromPrincipals | length > 0 %}
+{% for principal in policy.allowedFromPrincipals %}
+        - source:
+            principals:
+              - {{ principal }}
+{% endfor %}
+{% endif %}
+      to:
+        - operation:
+{% if policy.allowedPorts is defined and policy.allowedPorts | length > 0 %}
+            ports:
+{% for port in policy.allowedPorts %}
+              - "{{ port }}"
+{% endfor %}
+{% endif %}
+{% if policy.allowedMethods is defined and policy.allowedMethods | length > 0 %}
+            methods:
+{% for method in policy.allowedMethods %}
+              - {{ method }}
+{% endfor %}
+{% endif %}
+{% if policy.allowedPaths is defined and policy.allowedPaths | length > 0 %}
+            paths:
+{% for path in policy.allowedPaths %}
+              - "{{ path }}"
+{% endfor %}
+{% endif %}
+{% endfor %}

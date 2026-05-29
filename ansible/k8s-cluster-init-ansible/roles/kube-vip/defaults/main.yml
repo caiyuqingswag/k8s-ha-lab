@@ -1,0 +1,55 @@
+---
+# =========================
+# kube-vip image
+# =========================
+
+kube_vip_image: "ghcr.io/kube-vip/kube-vip"
+kube_vip_version: "v1.0.4"
+
+# =========================
+# Control-plane VIP
+# =========================
+
+kube_vip_address: "{{ kubevip_api_ip }}"
+kube_vip_dns_name: "{{ kubevip_api_name | default('prod-hz-01-api') }}"
+kube_vip_port: 6443
+kube_vip_subnet: 32
+
+# 留空则自动使用 ansible_default_ipv4.interface
+# 也可以在 inventory/group_vars 里指定 eth0/ens33 等
+kube_vip_interface: ""
+
+# =========================
+# Mode
+# =========================
+
+kube_vip_arp: true
+kube_vip_leader_election: true
+
+# 这个 role 只负责 apiserver control-plane VIP
+# Service LoadBalancer 先不要混进来
+kube_vip_cp_enable: true
+kube_vip_svc_enable: false
+kube_vip_lb_enable: false
+
+# =========================
+# Leader election
+# =========================
+
+kube_vip_lease_name_cp: "plndr-cp-lock"
+kube_vip_lease_duration: 5
+kube_vip_renew_deadline: 3
+kube_vip_retry_period: 1
+
+# =========================
+# Metrics
+# =========================
+
+kube_vip_metrics_bind: ":2112"
+
+# =========================
+# Kubelet restart
+# 一般不需要，kubelet 会自动 watch static pod manifests
+# =========================
+
+kube_vip_restart_kubelet: false

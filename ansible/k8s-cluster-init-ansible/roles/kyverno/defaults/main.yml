@@ -1,0 +1,19 @@
+﻿---
+kyverno_namespace: "kyverno"
+
+kyverno_chart_version: "3.8.0"
+kyverno_chart_archive: "kyverno-3.8.0.tgz"
+kyverno_work_dir: "/etc/kubernetes/kyverno"
+
+kyverno_app_version: "v1.18.0"
+
+# controller replicas
+kyverno_admission_controller_replicas: 3
+kyverno_background_controller_replicas: 2
+kyverno_cleanup_controller_replicas: 2
+kyverno_reports_controller_replicas: 2
+
+# 先关闭 reports-server，3.8.0 有用户反馈 reports-server/probe 相关安装问题
+kyverno_reports_server_enabled: false
+
+kyverno_helm_timeout: "10m"

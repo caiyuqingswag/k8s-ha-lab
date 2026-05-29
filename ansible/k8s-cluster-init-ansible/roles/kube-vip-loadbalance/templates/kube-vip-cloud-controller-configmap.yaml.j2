@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubevip
+  namespace: {{ kubevip_namespace }}
+data:
+  range-global: {{ kubevip_lb_range }}

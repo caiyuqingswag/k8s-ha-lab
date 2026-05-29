@@ -1,0 +1,45 @@
+﻿---
+velero_namespace: "velero"
+
+velero_chart_archive: "velero-12.0.1.tgz"
+velero_work_dir: "/etc/kubernetes/velero"
+
+velero_image_repository: "velero/velero"
+velero_image_tag: "v1.18.0"
+
+# =========================
+# External MinIO / S3-compatible storage
+# =========================
+
+velero_provider: "aws"
+
+# MinIO bucket
+velero_bucket: "velero-prod-hz-01"
+
+# MinIO region，MinIO 可随便给一个，但要保持一致
+velero_region: "cn-east-1"
+
+# 外部 MinIO 地址
+# 例子：
+#   https://minio.example.com
+#   http://192.168.1.100:9000
+velero_s3_url: "https://minio.example.com"
+
+# MinIO 一般必须 true
+velero_s3_force_path_style: "true"
+
+# 如果 MinIO 是公网可信 HTTPS 证书，保持 false
+# 如果是自签证书，建议先换成可信证书；临时测试可设 true
+velero_s3_insecure_skip_tls_verify: "false"
+
+# 访问密钥，建议放 ansible-vault
+velero_access_key_id: "CHANGE_ME_MINIO_ACCESS_KEY"
+velero_secret_access_key: "CHANGE_ME_MINIO_SECRET_KEY"
+
+# 先不做云盘快照，用 node-agent 做 PVC 文件级备份
+velero_enable_volume_snapshots: false
+velero_deploy_node_agent: true
+
+velero_default_backup_ttl: "168h0m0s"
+
+velero_helm_timeout: "10m"

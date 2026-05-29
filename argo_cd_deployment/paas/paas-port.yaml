@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paas-port
+  namespace: paas-components
+  labels:
+    app: paas-port
+    version: private
+spec:
+  selector:
+    matchLabels:
+      app: paas-port
+      version: private
+  replicas: 1
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: paas-port
+        version: private
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7070"
+    spec:
+      containers:
+        - name: paas-port
+          image: node5:443/ipaas-web/paas-port:private
+          ports:
+            - protocol: TCP
+              containerPort: 7070
+            - protocol: TCP
+              containerPort: 80
+            - name: extport
+              protocol: TCP
+              containerPort: 30068
+          env:
+            - name: APP_MODE
+              value: private
+            - name: APP_VERSION
+              value: private
+          resources:
+            requests:
+              cpu: 300m
+              memory: 1000Mi
+            limits:
+              cpu: 1000m
+              memory: 2500Mi
+      imagePullSecrets:
+        - name: harbor-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paas-port
+  namespace: paas-components
+  labels:
+    app: paas-port
+    version: private
+spec:
+  sessionAffinity: None
+  type: ClusterIP
+  selector:
+    app: paas-port
+  ports:
+    - name: http-7070
+      port: 7070
+      protocol: TCP
+      targetPort: 7070
+    - name: http-80
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: extport
+      port: 30068
+      protocol: TCP
+      targetPort: 30068
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paas-port-test
+  namespace: paas-components
+  labels:
+    app: paas-port
+    version: private
+spec:
+  sessionAffinity: None
+  type: NodePort
+  selector:
+    app: paas-port
+  ports:
+    - name: extport
+      port: 30068
+      protocol: TCP
+      nodePort: 30068
+      targetPort: 30068

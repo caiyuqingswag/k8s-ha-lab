@@ -1,0 +1,131 @@
+﻿---
+# =========================
+# JumpServer
+# Helm offline install with embedded PostgreSQL + Redis
+# =========================
+
+jumpserver_enabled: true
+
+jumpserver_namespace: "jumpserver"
+jumpserver_release_name: "jms-k8s"
+jumpserver_chart_archive: "jumpserver-v4.10.16.tgz"
+jumpserver_work_dir: "/etc/kubernetes/jumpserver"
+
+jumpserver_hostname: "jumpserver.itexcloud.com"
+jumpserver_ingress_enabled: false
+
+jumpserver_image_registry: "docker.io"
+jumpserver_image_owner: "jumpserver"
+
+jumpserver_storage_class: "{{ global_storage_class | default('longhorn') }}"
+jumpserver_access_mode: "ReadWriteOnce"
+
+# =========================
+# Embedded PostgreSQL
+# =========================
+
+jumpserver_postgresql_enabled: true
+jumpserver_postgresql_name: "jumpserver-postgresql"
+jumpserver_postgresql_image: "postgres:16-alpine"
+jumpserver_postgresql_port: 5432
+jumpserver_postgresql_database: "jumpserver"
+jumpserver_postgresql_user: "jumpserver"
+jumpserver_postgresql_password: "ChangeMe_Postgres_Password"
+jumpserver_postgresql_pvc_size: "20Gi"
+
+# =========================
+# Embedded Redis
+# =========================
+
+jumpserver_redis_enabled: true
+jumpserver_redis_name: "jumpserver-redis"
+jumpserver_redis_image: "redis:7.2-alpine"
+jumpserver_redis_port: 6379
+jumpserver_redis_password: "ChangeMe_Redis_Password"
+jumpserver_redis_pvc_size: "5Gi"
+
+# =========================
+# JumpServer external deps config
+# 实际上是 namespace 内置 PostgreSQL / Redis
+# 但对 JumpServer Chart 来说仍然按 externalDatabase/externalRedis 传入
+# =========================
+
+jumpserver_external_database_engine: "postgresql"
+jumpserver_external_database_host: "{{ jumpserver_postgresql_name }}.{{ jumpserver_namespace }}.svc.cluster.local"
+jumpserver_external_database_port: 5432
+jumpserver_external_database_user: "{{ jumpserver_postgresql_user }}"
+jumpserver_external_database_password: "{{ jumpserver_postgresql_password }}"
+jumpserver_external_database_name: "{{ jumpserver_postgresql_database }}"
+
+jumpserver_external_redis_host: "{{ jumpserver_redis_name }}.{{ jumpserver_namespace }}.svc.cluster.local"
+jumpserver_external_redis_port: 6379
+jumpserver_external_redis_password: "{{ jumpserver_redis_password }}"
+
+# =========================
+# Core secret
+# 生产建议后续放 ansible-vault
+# =========================
+
+jumpserver_core_secret_key: "ChangeMeJumpServerSecretKey1234567890ChangeMeJumpServer"
+jumpserver_core_bootstrap_token: "ChangeMeBootstrapToken2026"
+
+jumpserver_core_domains: "jumpserver.itexcloud.com"
+jumpserver_web_use_lb: "1"
+
+# =========================
+# Components
+# 单体轻量部署
+# =========================
+
+jumpserver_core_replicas: 1
+jumpserver_web_replicas: 1
+jumpserver_koko_replicas: 1
+jumpserver_lion_replicas: 1
+jumpserver_chen_replicas: 1
+jumpserver_magnus_enabled: false
+jumpserver_razor_enabled: false
+jumpserver_xpack_enabled: false
+
+# =========================
+# PVC size
+# =========================
+
+jumpserver_core_persistence_size: "50Gi"
+jumpserver_web_persistence_size: "5Gi"
+jumpserver_koko_persistence_size: "10Gi"
+jumpserver_lion_persistence_size: "20Gi"
+jumpserver_chen_persistence_size: "10Gi"
+
+# =========================
+# Resources
+# =========================
+
+jumpserver_core_cpu_request: "500m"
+jumpserver_core_memory_request: "1Gi"
+jumpserver_core_cpu_limit: "2"
+jumpserver_core_memory_limit: "4Gi"
+
+jumpserver_web_cpu_request: "100m"
+jumpserver_web_memory_request: "256Mi"
+jumpserver_web_cpu_limit: "1"
+jumpserver_web_memory_limit: "1Gi"
+
+jumpserver_koko_cpu_request: "100m"
+jumpserver_koko_memory_request: "256Mi"
+jumpserver_koko_cpu_limit: "1"
+jumpserver_koko_memory_limit: "1Gi"
+
+jumpserver_lion_cpu_request: "100m"
+jumpserver_lion_memory_request: "512Mi"
+jumpserver_lion_cpu_limit: "1"
+jumpserver_lion_memory_limit: "2Gi"
+
+jumpserver_chen_cpu_request: "100m"
+jumpserver_chen_memory_request: "256Mi"
+jumpserver_chen_cpu_limit: "1"
+jumpserver_chen_memory_limit: "1Gi"
+
+jumpserver_helm_timeout: "20m"
+
+jumpserver_web_service_name: "jms-k8s-jumpserver-jms-web"
+jumpserver_web_service_port: 80

@@ -1,0 +1,23 @@
+- name: Create directories
+  file:
+    path: "{{ dir_base }}/{{ item.0 }}/{{ item.1 }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ dir_envs | product(dir_components.keys()) | list }}"
+
+- name: Set ownership for directories
+  file:
+    path: "{{ dir_base }}/{{ item.0 }}/{{ item.1 }}"
+    owner: "{{ dir_components[item.1] }}"
+    group: "{{ dir_components[item.1] }}"
+    recurse: true
+  loop: "{{ dir_envs | product(dir_components.keys()) | list }}"
+
+- name: Find directories
+  find:
+    paths: "{{ dir_base }}"
+    file_type: directory
+  register: found_dirs
+
+- debug:
+    msg: "{{ found_dirs.files | map(attribute='path') | list }}"

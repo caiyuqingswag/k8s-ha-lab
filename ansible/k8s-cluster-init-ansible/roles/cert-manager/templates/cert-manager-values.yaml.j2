@@ -1,0 +1,17 @@
+# ===============================
+# cert-manager Helm values
+# ===============================
+
+crds:
+  enabled: {{ cert_manager_install_crds | bool | lower }}
+
+replicaCount: {{ cert_manager_replica_count }}
+
+prometheus:
+  enabled: {{ cert_manager_prometheus_enabled | bool | lower }}
+
+webhook:
+  timeoutSeconds: 10
+
+startupapicheck:
+  enabled: true

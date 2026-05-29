@@ -1,0 +1,8 @@
+apisix_admin_key: "123456"
+
+
+grafana_admin_password: "CHANGE_ME_USE_ANSIBLE_VAULT"
+
+
+velero_access_key_id: "你的 MinIO AccessKey"
+velero_secret_access_key: "你的 MinIO SecretKey"

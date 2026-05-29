@@ -1,0 +1,14 @@
+---
+metrics_server_chart_version: "3.13.0"
+metrics_server_chart_archive: "metrics-server-3.13.0.tgz"
+metrics_server_namespace: "kube-system"
+metrics_server_work_dir: "/etc/kubernetes/metrics-server"
+
+metrics_server_replicas: 1
+metrics_server_helm_timeout: "5m"
+
+# 自建集群常见 kubelet 证书 SAN 不完整，先开这个最省事。
+# 后面你想做严格 TLS，再把它改 false 并处理 kubelet serving cert。
+metrics_server_kubelet_insecure_tls: true
+
+metrics_server_kubelet_preferred_address_types: "InternalIP,ExternalIP,Hostn  ame"

@@ -1,0 +1,39 @@
+loki_namespace: "logging"
+
+loki_chart_version: "14.0.0"
+loki_chart_archive: "loki-14.0.0.tgz"
+loki_work_dir: "/etc/kubernetes/loki"
+
+# 部署模式：中小集群先用 singleBinary
+loki_deployment_mode: "SingleBinary"
+
+# {{ global_storage_class }} 存储
+loki_storage_class: "{{ global_storage_class }}"
+loki_storage_size: "50Gi"
+
+# 副本数
+# singleBinary 使用 RWO 存储时先用 1，后面要 HA 再改对象存储 + scalable 模式
+loki_single_binary_replicas: 1
+
+# 保留时间
+loki_retention_enabled: true
+loki_retention_period: "168h"   # 7 天
+
+# 资源
+loki_cpu_request: "200m"
+loki_memory_request: "512Mi"
+loki_cpu_limit: "2"
+loki_memory_limit: "2Gi"
+
+# Grafana Loki datasource
+loki_create_grafana_datasource: true
+loki_grafana_namespace: "monitoring"
+loki_grafana_datasource_name: "loki-prod-hz-01"
+loki_grafana_datasource_uid: "loki-prod-hz-01"
+
+# Loki Gateway 地址
+# 你的 loki-values.yaml.j2 里 gateway.enabled=true，所以优先用 loki-gateway
+loki_grafana_datasource_url: "http://loki-gateway.logging.svc.cluster.local"
+
+# Helm
+loki_helm_timeout: "10m"

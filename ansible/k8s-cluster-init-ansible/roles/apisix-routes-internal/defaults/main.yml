@@ -1,0 +1,40 @@
+﻿---
+# =========================
+# APISIX internal routes
+# Internal CLB -> apisix-internal NodePort 30081
+# =========================
+
+apisix_routes_internal_work_dir: "/etc/kubernetes/apisix-routes-internal"
+
+apisix_internal_ingress_class_name: "apisix-internal"
+
+apisix_internal_routes:
+  - name: grafana-route
+    namespace: monitoring
+    host: grafana.itexcloud.com
+    serviceName: grafana
+    servicePort: 80
+
+  - name: argocd-route
+    namespace: argocd
+    host: argocd.itexcloud.com
+    serviceName: argocd-server
+    servicePort: 80
+
+  - name: prometheus-route
+    namespace: monitoring
+    host: prometheus.itexcloud.com
+    serviceName: kube-prometheus-stack-prometheus
+    servicePort: 9090
+
+  - name: alertmanager-route
+    namespace: monitoring
+    host: alertmanager.itexcloud.com
+    serviceName: kube-prometheus-stack-alertmanager
+    servicePort: 9093
+
+  - name: longhorn-route
+    namespace: longhorn-system
+    host: longhorn.itexcloud.com
+    serviceName: longhorn-frontend
+    servicePort: 80

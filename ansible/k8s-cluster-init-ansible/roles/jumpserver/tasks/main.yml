@@ -1,0 +1,205 @@
+﻿---
+# =========================
+# Install JumpServer by offline Helm chart
+# with embedded PostgreSQL + Redis
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure JumpServer working directory exists
+  ansible.builtin.file:
+    path: "{{ jumpserver_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy JumpServer Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ jumpserver_chart_archive }}"
+    dest: "{{ jumpserver_work_dir }}/{{ jumpserver_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render JumpServer deps manifest
+  ansible.builtin.template:
+    src: jumpserver-deps.yaml.j2
+    dest: "{{ jumpserver_work_dir }}/jumpserver-deps.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render JumpServer values.yaml
+  ansible.builtin.template:
+    src: jumpserver-values.yaml.j2
+    dest: "{{ jumpserver_work_dir }}/values.yaml"
+    mode: "0600"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: jumpserver_apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: jumpserver_apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply JumpServer dependencies PostgreSQL and Redis
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ jumpserver_work_dir }}/jumpserver-deps.yaml"
+  register: jumpserver_deps_apply
+  changed_when: "'created' in jumpserver_deps_apply.stdout or 'configured' in jumpserver_deps_apply.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show JumpServer deps apply result
+  ansible.builtin.debug:
+    msg: "{{ jumpserver_deps_apply.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for embedded PostgreSQL ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - rollout
+      - status
+      - deploy/{{ jumpserver_postgresql_name }}
+      - --timeout=10m
+  changed_when: false
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - jumpserver_postgresql_enabled | bool
+
+- name: Wait for embedded Redis ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - rollout
+      - status
+      - deploy/{{ jumpserver_redis_name }}
+      - --timeout=10m
+  changed_when: false
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - jumpserver_redis_enabled | bool
+
+- name: Install or upgrade JumpServer via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ jumpserver_release_name }}"
+      - "{{ jumpserver_work_dir }}/{{ jumpserver_chart_archive }}"
+      - --namespace
+      - "{{ jumpserver_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ jumpserver_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ jumpserver_helm_timeout }}"
+      - --wait
+  register: jumpserver_helm_result
+  changed_when: "'has been upgraded' in jumpserver_helm_result.stdout or 'has been installed' in jumpserver_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show JumpServer Helm result
+  ansible.builtin.debug:
+    msg: "{{ jumpserver_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for JumpServer deployments
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - rollout
+      - status
+      - deployment
+      - -l
+      - "app.kubernetes.io/instance={{ jumpserver_release_name }}"
+      - --timeout=20m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show JumpServer pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: jumpserver_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print JumpServer pods
+  ansible.builtin.debug:
+    msg: "{{ jumpserver_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show JumpServer services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: jumpserver_svcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print JumpServer services
+  ansible.builtin.debug:
+    msg: "{{ jumpserver_svcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show JumpServer PVC
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ jumpserver_namespace }}"
+      - get
+      - pvc
+  register: jumpserver_pvcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print JumpServer PVC
+  ansible.builtin.debug:
+    msg: "{{ jumpserver_pvcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

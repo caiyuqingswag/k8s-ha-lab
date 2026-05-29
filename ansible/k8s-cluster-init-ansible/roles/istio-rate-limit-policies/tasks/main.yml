@@ -1,0 +1,70 @@
+﻿---
+# =========================
+# Apply Istio local rate limit policies
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Istio rate limit work directory exists
+  ansible.builtin.file:
+    path: "{{ istio_rate_limit_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Istio local rate limit EnvoyFilters
+  ansible.builtin.template:
+    src: local-ratelimit-envoyfilters.yaml.j2
+    dest: "{{ istio_rate_limit_work_dir }}/local-ratelimit-envoyfilters.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check EnvoyFilter CRD exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - crd
+      - envoyfilters.networking.istio.io
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Istio local rate limit EnvoyFilters
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ istio_rate_limit_work_dir }}/local-ratelimit-envoyfilters.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Istio EnvoyFilters
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - envoyfilter
+      - -A
+  register: istio_rate_limit_envoyfilters
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Istio EnvoyFilters
+  ansible.builtin.debug:
+    msg: "{{ istio_rate_limit_envoyfilters.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print rendered rate limit yaml path
+  ansible.builtin.debug:
+    msg: "Rendered file: {{ istio_rate_limit_work_dir }}/local-ratelimit-envoyfilters.yaml"
+  when: inventory_hostname == groups['masters'][0]

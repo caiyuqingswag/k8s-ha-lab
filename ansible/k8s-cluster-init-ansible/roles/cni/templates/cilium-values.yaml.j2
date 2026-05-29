@@ -1,0 +1,45 @@
+# ===============================
+# Cilium Helm values
+# Kubernetes 1.36.1 / Cilium 1.19.4
+# Cloud VM / kube-vip / VXLAN
+# ===============================
+
+# kube-proxy replacement
+# 如果这里是 true，kubeadm 阶段不要安装 kube-proxy
+kubeProxyReplacement: {{ cilium_kubeproxy_replacement | bool | lower }}
+
+# kube-apiserver
+k8sServiceHost: "{{ k8s_service_host }}"
+k8sServicePort: "{{ k8s_service_port }}"
+
+# IPAM
+ipam:
+  mode: "{{ cilium_ipam_mode }}"
+
+# Routing
+routingMode: "{{ cilium_routing_mode }}"
+tunnelProtocol: "{{ cilium_tunnel_protocol }}"
+
+# Operator HA
+operator:
+  replicas: {{ cilium_operator_replicas }}
+
+# NodePort
+nodePort:
+{% if cilium_nodeport_addresses | length > 0 %}
+  addresses:
+{% for cidr in cilium_nodeport_addresses %}
+    - "{{ cidr }}"
+{% endfor %}
+{% else %}
+  addresses: null
+{% endif %}
+  bindProtection: {{ cilium_nodeport_bind_protection | bool | lower }}
+
+# Hubble
+hubble:
+  enabled: {{ cilium_hubble_enabled | bool | lower }}
+  relay:
+    enabled: {{ cilium_hubble_relay_enabled | bool | lower }}
+  ui:
+    enabled: {{ cilium_hubble_ui_enabled | bool | lower }}

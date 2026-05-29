@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: saas-config
+  namespace: saas
+data:
+  JAVA_OPTS: >
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/heapdump
+    -XX:MaxRAMPercentage=75
+    -Duser.timezone=Asia/Shanghai

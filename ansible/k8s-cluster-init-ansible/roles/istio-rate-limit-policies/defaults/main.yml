@@ -1,0 +1,128 @@
+﻿---
+# =========================
+# Istio Local Rate Limit Policies
+# 基于 EnvoyFilter 的本地限流
+# =========================
+
+istio_rate_limit_work_dir: "/etc/kubernetes/istio-rate-limit-policies"
+
+# 是否启用本地限流策略
+istio_rate_limit_enabled: true
+
+# Local Rate Limit 说明：
+# - 每个 Envoy proxy 独立计数
+# - 如果 service 有 3 个 Pod，每个 Pod 100 QPS，总体约等于 300 QPS
+# - 如果 gateway 有 2 个副本，每个副本 1000 QPS，总体约等于 2000 QPS
+#
+# context:
+#   SIDECAR_INBOUND = 限制进入业务 Pod 的流量
+#   GATEWAY         = 限制进入 Istio Gateway 的流量
+#
+# statusCodeName:
+#   TooManyRequests = HTTP 429
+
+istio_local_rate_limit_policies:
+
+  # =========================
+  # Public Gateway 兜底限流
+  # 注意：这是 gateway 级限流，会作用于该 gateway 上所有 HTTP 域名
+  # =========================
+  - name: public-gateway-local-ratelimit
+    namespace: istio-ingress-public
+    context: GATEWAY
+    workloadSelector:
+      istio: ingressgateway-public
+    portNumber: 80
+    statPrefix: public_gateway_local_rate_limit
+    maxTokens: 1000
+    tokensPerFill: 1000
+    fillInterval: 1s
+    enabledPercent: 100
+    enforcedPercent: 100
+    statusCodeName: TooManyRequests
+    responseHeaders:
+      - key: x-local-rate-limit
+        value: "public-gateway"
+
+  # =========================
+  # Internal Gateway 兜底限流
+  # =========================
+  - name: internal-gateway-local-ratelimit
+    namespace: istio-ingress-internal
+    context: GATEWAY
+    workloadSelector:
+      istio: ingressgateway-internal
+    portNumber: 80
+    statPrefix: internal_gateway_local_rate_limit
+    maxTokens: 500
+    tokensPerFill: 500
+    fillInterval: 1s
+    enabledPercent: 100
+    enforcedPercent: 100
+    statusCodeName: TooManyRequests
+    responseHeaders:
+      - key: x-local-rate-limit
+        value: "internal-gateway"
+
+  # =========================
+  # decision-flow-web 服务限流
+  # 每个 decision-flow-web Pod 每秒最多 100 个请求
+  # =========================
+  - name: decision-flow-web-local-ratelimit
+    namespace: prod-paas-components
+    context: SIDECAR_INBOUND
+    workloadSelector:
+      app: decision-flow-web
+    portNumber: 80
+    statPrefix: decision_flow_web_local_rate_limit
+    maxTokens: 100
+    tokensPerFill: 100
+    fillInterval: 1s
+    enabledPercent: 100
+    enforcedPercent: 100
+    statusCodeName: TooManyRequests
+    responseHeaders:
+      - key: x-local-rate-limit
+        value: "decision-flow-web"
+
+  # =========================
+  # order-api 服务限流
+  # 每个 order-api Pod 每秒最多 200 个请求
+  # =========================
+  - name: order-api-local-ratelimit
+    namespace: prod-itex-servers
+    context: SIDECAR_INBOUND
+    workloadSelector:
+      app: order-api
+    portNumber: 80
+    statPrefix: order_api_local_rate_limit
+    maxTokens: 200
+    tokensPerFill: 200
+    fillInterval: 1s
+    enabledPercent: 100
+    enforcedPercent: 100
+    statusCodeName: TooManyRequests
+    responseHeaders:
+      - key: x-local-rate-limit
+        value: "order-api"
+
+  # =========================
+  # user-api 服务限流
+  # 每个 user-api Pod 每秒最多 300 个请求
+  # =========================
+  - name: user-api-local-ratelimit
+    namespace: prod-itex-servers
+    context: SIDECAR_INBOUND
+    workloadSelector:
+      app: user-api
+    portNumber: 80
+    statPrefix: user_api_local_rate_limit
+    maxTokens: 300
+    tokensPerFill: 300
+    fillInterval: 1s
+    enabledPercent: 100
+    enforcedPercent: 100
+    statusCodeName: TooManyRequests
+    responseHeaders:
+      - key: x-local-rate-limit
+        value: "user-api"

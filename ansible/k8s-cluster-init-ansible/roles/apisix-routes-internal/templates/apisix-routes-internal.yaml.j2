@@ -1,0 +1,28 @@
+﻿{% for route in apisix_internal_routes %}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: {{ route.name }}
+  namespace: {{ route.namespace }}
+spec:
+  ingressClassName: {{ apisix_internal_ingress_class_name }}
+  http:
+    - name: {{ route.name }}
+      match:
+        hosts:
+          - {{ route.host }}
+        paths:
+          - /*
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+          - HEAD
+      backends:
+        - serviceName: {{ route.serviceName }}
+          servicePort: {{ route.servicePort }}
+{% endfor %}

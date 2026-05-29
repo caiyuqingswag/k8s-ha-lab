@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-rabbitmq-sit
+  namespace: sit-basic
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: rabbitmq-nfs-sit
+  resources:
+    requests:
+      storage: 50Gi
+  volumeName: pv-rabbitmq-sit

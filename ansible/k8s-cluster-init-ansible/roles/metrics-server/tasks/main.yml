@@ -1,0 +1,113 @@
+---
+# =========================
+# Install metrics-server by offline Helm chart
+# Run on first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure metrics-server working directory exists
+  ansible.builtin.file:
+    path: "{{ metrics_server_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy metrics-server Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ metrics_server_chart_archive }}"
+    dest: "{{ metrics_server_work_dir }}/{{ metrics_server_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render metrics-server values.yaml
+  ansible.builtin.template:
+    src: metrics-server-values.yaml.j2
+    dest: "{{ metrics_server_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade metrics-server via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - metrics-server
+      - "{{ metrics_server_work_dir }}/{{ metrics_server_chart_archive }}"
+      - --namespace
+      - "{{ metrics_server_namespace }}"
+      - -f
+      - "{{ metrics_server_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ metrics_server_helm_timeout }}"
+      - --wait
+  register: metrics_server_helm_result
+  changed_when: "'has been upgraded' in metrics_server_helm_result.stdout or 'has been installed' in metrics_server_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for metrics-server deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ metrics_server_namespace }}"
+      - rollout
+      - status
+      - deploy/metrics-server
+      - --timeout=5m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for metrics.k8s.io APIService to become Available
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - wait
+      - --for=condition=Available
+      - apiservice/v1beta1.metrics.k8s.io
+      - --timeout=120s
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Test kubectl top nodes
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - top
+      - nodes
+  register: kubectl_top_nodes
+  changed_when: false
+  retries: 12
+  delay: 10
+  until: kubectl_top_nodes.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show kubectl top nodes
+  ansible.builtin.debug:
+    msg: "{{ kubectl_top_nodes.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]

@@ -1,0 +1,69 @@
+---
+# =========================
+# {{ global_storage_class }} prerequisites
+# Ubuntu 24.04
+# Run on all Kubernetes nodes
+# =========================
+
+- name: Install Longhorn prerequisite packages
+  ansible.builtin.apt:
+    name:
+      - open-iscsi
+      - nfs-common
+      - util-linux
+      - dmsetup
+      - cryptsetup
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+- name: Enable and start iscsid service
+  ansible.builtin.systemd:
+    name: iscsid
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Enable and start open-iscsi service
+  ansible.builtin.systemd:
+    name: open-iscsi
+    enabled: true
+    state: started
+    daemon_reload: true
+  failed_when: false
+
+- name: Load iscsi_tcp kernel module
+  ansible.builtin.command: modprobe iscsi_tcp
+  changed_when: false
+  failed_when: false
+
+- name: Persist iscsi_tcp module
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/iscsi.conf
+    content: |
+      iscsi_tcp
+    mode: "0644"
+
+- name: Verify iscsid service
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - iscsid
+  register: iscsid_status
+  changed_when: false
+
+- name: Verify iscsiadm exists
+  ansible.builtin.command:
+    argv:
+      - iscsiadm
+      - --version
+  register: iscsiadm_version
+  changed_when: false
+
+- name: Show Longhorn prerequisite status
+  ansible.builtin.debug:
+    msg:
+      - "iscsid: {{ iscsid_status.stdout }}"
+      - "{{ iscsiadm_version.stdout | default(iscsiadm_version.stderr) }}"

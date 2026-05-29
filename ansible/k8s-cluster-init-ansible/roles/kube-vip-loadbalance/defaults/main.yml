@@ -1,0 +1,15 @@
+# kube-vip 基本配置
+kubevip_namespace: kube-system
+
+# LoadBalancer IP 池
+kubevip_lb_range: "172.16.15.70-172.16.15.75"
+
+# kube-vip 镜像版本
+kubevip_image: "ghcr.io/kube-vip/kube-vip:v1.0.3"
+kubevip_cloud_provider_image: "ghcr.io/kube-vip/kube-vip-cloud-provider:v0.0.12"
+
+# API Server 端口（一般不用改）
+kubevip_apiserver_port: 6443
+
+# VIP 网卡名（⚠️ 很关键）
+kubevip_interface: eth0

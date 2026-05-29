@@ -1,0 +1,250 @@
+﻿# ===============================
+# Grafana Alloy Helm values
+# Logs -> Loki
+# Traces -> Tempo
+# ===============================
+
+alloy:
+  extraEnv:
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+
+  extraPorts:
+{% if alloy_traces_enabled | bool %}
+    - name: otlp-grpc
+      port: {{ alloy_otlp_grpc_port }}
+      targetPort: {{ alloy_otlp_grpc_port }}
+      protocol: TCP
+    - name: otlp-http
+      port: {{ alloy_otlp_http_port }}
+      targetPort: {{ alloy_otlp_http_port }}
+      protocol: TCP
+{% endif %}
+
+  configMap:
+    create: true
+    content: |
+      // ===============================
+      // Kubernetes Pod Logs -> Loki
+      // ===============================
+
+      discovery.kubernetes "pods" {
+        role = "pod"
+        namespaces {
+          names = [
+{% for ns in alloy_log_namespaces %}
+            "{{ ns }}",
+{% endfor %}
+          ]
+        }
+      }
+
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex         = "^({{ alloy_log_namespaces | join('|') }})$"
+          action        = "keep"
+        }
+
+{% if alloy_keep_current_node_only | bool %}
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          regex         = env("NODE_NAME")
+          action        = "keep"
+        }
+{% endif %}
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+
+        rule {
+          action        = "replace"
+          source_labels = ["__meta_kubernetes_pod_container_id"]
+          regex         = "^(\\S+):\\/\\/.+$"
+          replacement   = "$1"
+          target_label  = "container_runtime"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_logs_grafana_com_enabled"]
+          regex         = "false"
+          action        = "drop"
+        }
+
+        rule {
+          action = "replace"
+          source_labels = [
+            "__meta_kubernetes_pod_annotation_resource_opentelemetry_io_service_name",
+            "__meta_kubernetes_pod_label_app_kubernetes_io_name",
+            "__meta_kubernetes_pod_container_name",
+          ]
+          separator    = ";"
+          regex        = "^(?:;*)?([^;]+).*$"
+          replacement  = "$1"
+          target_label = "service_name"
+        }
+
+        rule {
+          action = "labelmap"
+          regex  = "__meta_kubernetes_pod_label_(app|component|tier)"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.logs.receiver]
+      }
+
+      loki.process "logs" {
+        stage.match {
+          selector = "{container_runtime=~\"containerd|cri-o\"}"
+
+          stage.cri {}
+
+          stage.labels {
+            values = {
+              stream = "",
+              flags  = "",
+            }
+          }
+        }
+
+        stage.match {
+          selector = "{container_runtime=\"docker\"}"
+
+          stage.docker {}
+
+          stage.labels {
+            values = {
+              stream = "",
+            }
+          }
+        }
+
+        stage.label_drop {
+          values = [
+            "filename",
+            "container_runtime",
+          ]
+        }
+
+        stage.label_keep {
+          values = [
+            "cluster",
+            "namespace",
+            "pod",
+            "container",
+            "node",
+            "stream",
+            "service_name",
+            "app",
+          ]
+        }
+
+        stage.static_labels {
+          values = {
+            cluster = "{{ alloy_cluster_name }}",
+          }
+        }
+
+        forward_to = [loki.write.loki.receiver]
+      }
+
+      loki.write "loki" {
+        endpoint {
+          url = "{{ alloy_loki_push_url }}"
+
+          min_backoff_period = "500ms"
+          max_backoff_period = "5m"
+          max_backoff_retries = 10
+
+          tls_config {
+            insecure_skip_verify = false
+          }
+        }
+
+        external_labels = {
+          cluster = "{{ alloy_cluster_name }}",
+        }
+      }
+
+{% if alloy_traces_enabled | bool %}
+      // ===============================
+      // OTLP Traces -> Tempo
+      // ===============================
+      //
+      // 应用发送到 Alloy：
+      //   OTLP gRPC: alloy-otlp.logging.svc.cluster.local:4317
+      //   OTLP HTTP: http://alloy-otlp.logging.svc.cluster.local:4318
+      //
+      // Alloy 转发到 Tempo：
+      //   tempo.tracing.svc.cluster.local:4317
+
+      otelcol.receiver.otlp "traces" {
+        grpc {
+          endpoint = "0.0.0.0:{{ alloy_otlp_grpc_port }}"
+        }
+
+        http {
+          endpoint = "0.0.0.0:{{ alloy_otlp_http_port }}"
+        }
+
+        output {
+          traces = [otelcol.processor.batch.traces.input]
+        }
+      }
+
+      otelcol.processor.batch "traces" {
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "{{ alloy_tempo_otlp_endpoint }}"
+
+          tls {
+            insecure = {{ alloy_tempo_otlp_tls_insecure | bool | lower }}
+          }
+        }
+      }
+{% endif %}
+
+controller:
+  type: daemonset
+
+serviceAccount:
+  create: true
+
+rbac:
+  create: true
+
+resources:
+  requests:
+    cpu: "{{ alloy_cpu_request }}"
+    memory: "{{ alloy_memory_request }}"
+  limits:
+    cpu: "{{ alloy_cpu_limit }}"
+    memory: "{{ alloy_memory_limit }}"

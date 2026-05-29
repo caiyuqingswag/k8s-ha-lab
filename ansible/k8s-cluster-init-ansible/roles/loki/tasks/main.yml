@@ -1,0 +1,158 @@
+# =========================
+# Install Loki by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Loki working directory exists
+  ansible.builtin.file:
+    path: "{{ loki_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Loki Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ loki_chart_archive }}"
+    dest: "{{ loki_work_dir }}/{{ loki_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Loki values.yaml
+  ansible.builtin.template:
+    src: loki-values.yaml.j2
+    dest: "{{ loki_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Grafana Loki datasource
+  ansible.builtin.template:
+    src: grafana-loki-datasource.yaml.j2
+    dest: "{{ loki_work_dir }}/grafana-loki-datasource.yaml"
+    mode: "0644"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - loki_create_grafana_datasource | bool
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Loki namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ loki_namespace }}"
+  register: loki_ns_create
+  failed_when:
+    - loki_ns_create.rc != 0
+    - "'AlreadyExists' not in loki_ns_create.stderr"
+  changed_when: loki_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade Loki via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - loki
+      - "{{ loki_work_dir }}/{{ loki_chart_archive }}"
+      - --namespace
+      - "{{ loki_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ loki_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ loki_helm_timeout }}"
+      - --wait
+  register: loki_helm_result
+  changed_when: "'has been upgraded' in loki_helm_result.stdout or 'has been installed' in loki_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Loki Helm result
+  ansible.builtin.debug:
+    msg: "{{ loki_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Grafana Loki datasource
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ loki_work_dir }}/grafana-loki-datasource.yaml"
+  register: loki_grafana_datasource_apply
+  changed_when: "'created' in loki_grafana_datasource_apply.stdout or 'configured' in loki_grafana_datasource_apply.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - loki_create_grafana_datasource | bool
+
+- name: Show Grafana Loki datasource apply result
+  ansible.builtin.debug:
+    msg: "{{ loki_grafana_datasource_apply.stdout_lines | default([]) }}"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - loki_create_grafana_datasource | bool
+
+- name: Show Loki pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ loki_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: loki_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Loki pods
+  ansible.builtin.debug:
+    msg: "{{ loki_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Loki services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ loki_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: loki_svcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Loki services
+  ansible.builtin.debug:
+    msg: "{{ loki_svcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

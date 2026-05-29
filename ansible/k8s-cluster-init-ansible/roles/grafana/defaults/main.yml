@@ -1,0 +1,31 @@
+---
+grafana_namespace: "monitoring"
+
+grafana_chart_version: "10.5.15"
+grafana_chart_archive: "grafana-10.5.15.tgz"
+grafana_work_dir: "/etc/kubernetes/grafana"
+
+# 后续通过 APISIXRoute 暴露
+grafana_service_type: "ClusterIP"
+
+# Grafana 域名，后面 APISIXRoute 会用
+grafana_domain: "grafana.example.com"
+grafana_root_url: "https://{{ grafana_domain }}"
+
+# 管理员密码，建议后面放 ansible-vault
+grafana_admin_user: "admin"
+grafana_admin_password: "CHANGE_ME_USE_ANSIBLE_VAULT"
+
+# 持久化
+grafana_persistence_enabled: true
+grafana_storage_class: "{{ global_storage_class }}"
+grafana_storage_size: "10Gi"
+
+# 资源
+grafana_cpu_request: "100m"
+grafana_memory_request: "256Mi"
+grafana_cpu_limit: "1000m"
+grafana_memory_limit: "1Gi"
+
+# Helm
+grafana_helm_timeout: "10m"

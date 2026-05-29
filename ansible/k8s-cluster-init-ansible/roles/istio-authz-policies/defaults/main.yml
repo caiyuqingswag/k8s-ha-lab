@@ -1,0 +1,91 @@
+﻿---
+# =========================
+# Istio Authorization Policies
+# 服务间访问控制
+# =========================
+
+istio_authz_policies_work_dir: "/etc/kubernetes/istio-authz-policies"
+
+# 是否启用 namespace 级默认拒绝
+# 初期建议 false，等你确认调用关系后再打开
+istio_authz_enable_default_deny: false
+
+# 默认拒绝的 namespace
+istio_authz_default_deny_namespaces:
+  - prod-itex-components
+  - prod-itex-servers
+  - prod-paas-components
+  - prod-srm-components
+  - stable-itex-components
+  - stable-itex-servers
+
+# 显式允许规则
+# 说明：
+# - name: 策略名称
+# - namespace: 策略所在 namespace，也就是目标服务所在 namespace
+# - selectorLabels: 目标服务 Pod 的 label
+# - allowedFromNamespaces: 允许哪些 namespace 访问
+# - allowedFromPrincipals: 允许哪些 serviceAccount 访问，格式：
+#   cluster.local/ns/<namespace>/sa/<serviceAccount>
+# - allowedPorts: 允许访问的端口
+# - allowedMethods: HTTP 方法，可选
+# - allowedPaths: HTTP 路径，可选
+
+istio_authz_allow_policies:
+
+  # 例子 1：允许 prod-itex-servers 里的服务访问 decision-flow-web
+  - name: allow-decision-flow-web-from-prod-itex-servers
+    namespace: prod-paas-components
+    selectorLabels:
+      app: decision-flow-web
+    allowedFromNamespaces:
+      - prod-itex-servers
+    allowedFromPrincipals: []
+    allowedPorts:
+      - "80"
+    allowedMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+    allowedPaths:
+      - "/*"
+
+  # 例子 2：只允许 order-api 的 serviceAccount 访问 user-api
+  # 前提：order-api 的 Pod 使用 serviceAccountName: order-api
+  - name: allow-user-api-from-order-api
+    namespace: prod-itex-servers
+    selectorLabels:
+      app: user-api
+    allowedFromNamespaces: []
+    allowedFromPrincipals:
+      - cluster.local/ns/prod-itex-servers/sa/order-api
+    allowedPorts:
+      - "80"
+    allowedMethods:
+      - GET
+      - POST
+    allowedPaths:
+      - "/*"
+
+  # 例子 3：允许 public/internal ingress gateway 访问业务入口服务
+  - name: allow-decision-flow-web-from-istio-gateways
+    namespace: prod-paas-components
+    selectorLabels:
+      app: decision-flow-web
+    allowedFromNamespaces:
+      - istio-ingress-public
+      - istio-ingress-internal
+    allowedFromPrincipals: []
+    allowedPorts:
+      - "80"
+    allowedMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+    allowedPaths:
+      - "/*"

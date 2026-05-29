@@ -1,0 +1,72 @@
+---
+# =========================
+# Cilium version / chart
+# =========================
+
+cilium_version: "1.19.4"
+cilium_namespace: "kube-system"
+
+#要和 roles/cni/files/ 下的文件名完全一致
+cilium_chart_archive: "cilium-1.19.4.tgz"
+cilium_work_dir: "/etc/kubernetes/cilium"
+
+# =========================
+# kube-vip / apiserver VIP
+# =========================
+
+k8s_service_host: "{{ kubevip_api_ip }}"
+k8s_service_port: 6443
+
+# =========================
+# kube-proxy replacement
+# true: 不再使用 kube-proxy
+# false: 保留 kube-proxy
+# =========================
+
+cilium_kubeproxy_replacement: true
+
+# =========================
+# Cilium network mode
+# 云服务器多云/单云自建，先用 VXLAN overlay
+# =========================
+
+cilium_routing_mode: "tunnel"
+cilium_tunnel_protocol: "vxlan"
+
+# =========================
+# IPAM
+# =========================
+
+cilium_ipam_mode: "kubernetes"
+
+# =========================
+# NodePort
+# 如果不确定，建议先保持空，让 Cilium 自动选择节点地址
+# 原来写 0.0.0.0/0 太宽泛，不推荐
+# =========================
+
+cilium_nodeport_addresses: []
+cilium_nodeport_bind_protection: true
+
+# =========================
+# Operator
+# 你有 3 master，operator replicas 建议 2
+# =========================
+
+cilium_operator_replicas: 2
+
+# =========================
+# Hubble
+# 第一阶段可以先开 relay，不开 UI
+# =========================
+
+cilium_hubble_enabled: true
+cilium_hubble_relay_enabled: true
+cilium_hubble_ui_enabled: false
+
+# =========================
+# Helm behavior
+# =========================
+
+cilium_helm_wait: true
+cilium_helm_timeout: "10m"

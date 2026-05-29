@@ -1,0 +1,214 @@
+---
+- name: Skip system update if disabled
+  ansible.builtin.meta: end_host
+  when: not (system_update_enabled | default(true))
+
+- name: Mark whether this host is the Ansible control node
+  ansible.builtin.set_fact:
+    is_control_node: "{{ inventory_hostname == (system_update_control_host | default('')) }}"
+
+# ===== BEFORE UPDATE SNAPSHOT =====
+
+- name: Record OS version before update
+  ansible.builtin.shell: |
+    set -o pipefail
+    if command -v lsb_release >/dev/null 2>&1; then
+      lsb_release -ds
+    else
+      . /etc/os-release
+      echo "${PRETTY_NAME}"
+    fi
+  args:
+    executable: /bin/bash
+  register: os_before
+  changed_when: false
+
+- name: Record kernel before update
+  ansible.builtin.command: uname -r
+  register: kernel_before
+  changed_when: false
+
+# ===== SYSTEM UPDATE =====
+
+- name: Update apt cache and upgrade packages
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: "{{ system_update_apt_upgrade | default('dist') }}"
+    lock_timeout: "{{ system_update_pkg_lock_timeout | default(120) }}"
+  register: apt_update_result
+
+- name: Autoremove unused packages
+  ansible.builtin.apt:
+    autoremove: true
+    lock_timeout: "{{ system_update_pkg_lock_timeout | default(120) }}"
+  register: apt_autoremove_result
+  when: system_update_apt_autoremove | default(true)
+
+- name: Autoclean apt cache
+  ansible.builtin.apt:
+    autoclean: true
+    lock_timeout: "{{ system_update_pkg_lock_timeout | default(120) }}"
+  register: apt_autoclean_result
+  when: system_update_apt_autoclean | default(true)
+
+# ===== REBOOT DECISION =====
+
+- name: Check if Ubuntu requires reboot
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required_file
+
+- name: Decide reboot_needed flag
+  ansible.builtin.set_fact:
+    reboot_needed: >-
+      {{
+        (
+          system_update_reboot_only_if_needed | default(true)
+        )
+        | ternary(
+          reboot_required_file.stat.exists | default(false),
+          apt_update_result.changed | default(false)
+        )
+      }}
+
+- name: Read reboot-required packages
+  ansible.builtin.slurp:
+    src: /var/run/reboot-required.pkgs
+  register: reboot_required_pkgs_raw
+  when: reboot_required_file.stat.exists | default(false)
+  failed_when: false
+  changed_when: false
+
+- name: Set reboot-required package list
+  ansible.builtin.set_fact:
+    reboot_required_pkgs: >-
+      {{
+        (
+          reboot_required_pkgs_raw.content | default('') | b64decode
+        ).splitlines()
+        if reboot_required_pkgs_raw is defined and reboot_required_pkgs_raw.content is defined
+        else []
+      }}
+
+# ===== REBOOT =====
+
+- name: Reboot system now except control node
+  ansible.builtin.reboot:
+    msg: "Reboot triggered by Ansible after system update"
+    connect_timeout: "{{ system_update_connect_timeout | default(5) }}"
+    reboot_timeout: "{{ system_update_reboot_timeout | default(1200) }}"
+    pre_reboot_delay: "{{ system_update_pre_delay | default(3) }}"
+    post_reboot_delay: "{{ system_update_post_delay | default(10) }}"
+  register: reboot_result
+  when:
+    - system_update_reboot | default(true)
+    - reboot_needed | default(false)
+    - not is_control_node
+
+- name: Reboot control node with delay if explicitly allowed
+  ansible.builtin.reboot:
+    msg: "Delayed reboot for Ansible control node after system update"
+    connect_timeout: "{{ system_update_connect_timeout | default(5) }}"
+    reboot_timeout: "{{ system_update_reboot_timeout | default(1200) }}"
+    pre_reboot_delay: "{{ system_update_control_reboot_delay_seconds | default(60) }}"
+    post_reboot_delay: "{{ system_update_post_delay | default(10) }}"
+  register: reboot_control_result
+  when:
+    - system_update_reboot | default(true)
+    - reboot_needed | default(false)
+    - is_control_node
+    - system_update_reboot_control_node | default(false)
+
+# ===== AFTER UPDATE SNAPSHOT =====
+
+- name: Record OS version after update
+  ansible.builtin.shell: |
+    set -o pipefail
+    if command -v lsb_release >/dev/null 2>&1; then
+      lsb_release -ds
+    else
+      . /etc/os-release
+      echo "${PRETTY_NAME}"
+    fi
+  args:
+    executable: /bin/bash
+  register: os_after
+  changed_when: false
+
+- name: Record kernel after update/reboot
+  ansible.builtin.command: uname -r
+  register: kernel_after
+  changed_when: false
+
+# ===== DIFF COMPUTATION =====
+
+- name: Compute OS version changed
+  ansible.builtin.set_fact:
+    os_changed: "{{ os_before.stdout != os_after.stdout }}"
+
+- name: Compute kernel changed
+  ansible.builtin.set_fact:
+    kernel_changed: "{{ kernel_before.stdout != kernel_after.stdout }}"
+
+- name: Compute reboot executed flag
+  ansible.builtin.set_fact:
+    reboot_executed: >-
+      {{
+        (
+          reboot_result is defined and reboot_result.changed | default(false)
+        )
+        or
+        (
+          reboot_control_result is defined and reboot_control_result.changed | default(false)
+        )
+      }}
+
+# ===== PER-HOST REPORT =====
+
+- name: Build per-host report text
+  ansible.builtin.set_fact:
+    upgrade_report: |
+      Host: {{ inventory_hostname }}
+      OS before: {{ os_before.stdout }}
+      OS after:  {{ os_after.stdout }}
+      OS changed: {{ 'YES' if os_changed else 'NO' }}
+      Kernel before: {{ kernel_before.stdout }}
+      Kernel after:  {{ kernel_after.stdout }}
+      Kernel changed: {{ 'YES' if kernel_changed else 'NO' }}
+      Reboot needed: {{ 'YES' if reboot_needed else 'NO' }}
+      Reboot executed: {{ 'YES' if reboot_executed else 'NO' }}
+      Is control node: {{ 'YES' if is_control_node else 'NO' }}
+      APT changed: {{ 'YES' if (apt_update_result is defined and (apt_update_result.changed | default(false))) else 'NO' }}
+      Autoremove changed: {{ 'YES' if (apt_autoremove_result is defined and (apt_autoremove_result.changed | default(false))) else 'NO' }}
+      Autoclean changed: {{ 'YES' if (apt_autoclean_result is defined and (apt_autoclean_result.changed | default(false))) else 'NO' }}
+      Reboot-required packages: {{ reboot_required_pkgs | default([]) | join(', ') if reboot_required_pkgs | default([]) | length > 0 else 'N/A' }}
+      Time: {{ ansible_date_time.iso8601 }}
+
+# ===== REPORT OUTPUT ON ANSIBLE CONTROL MACHINE =====
+
+- name: Ensure report dir exists on control node
+  delegate_to: localhost
+  run_once: true
+  become: false
+  ansible.builtin.file:
+    path: "{{ system_update_report_dir | default('./upgrade-reports') }}"
+    state: directory
+    mode: "0755"
+
+- name: Save per-host report on control node
+  delegate_to: localhost
+  become: false
+  ansible.builtin.copy:
+    dest: "{{ system_update_report_dir | default('./upgrade-reports') }}/{{ inventory_hostname }}.txt"
+    content: "{{ upgrade_report }}"
+    mode: "0644"
+
+- name: Save summary report on control node
+  delegate_to: localhost
+  run_once: true
+  become: false
+  ansible.builtin.template:
+    src: summary.j2
+    dest: "{{ system_update_report_dir | default('./upgrade-reports') }}/SUMMARY.txt"
+    mode: "0644"

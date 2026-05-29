@@ -1,0 +1,24 @@
+---
+k8s_cluster_name: "prod-hz-01"
+
+k8s_version: "1.36.1"
+image_repo: "registry.cn-hangzhou.aliyuncs.com/google_containers"
+
+control_plane_endpoint: "{{ kubevip_api_name }}:6443"
+
+pod_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+dns_domain: "cluster.local"
+
+cri_socket: "unix:///run/containerd/containerd.sock"
+cgroup_driver: "systemd"
+
+kubeadm_skip_kube_proxy: true
+kubeadm_upload_certs: true
+
+# join 时显式指定
+kubeadm_apiserver_bind_port: 6443
+
+# master 是否允许调度普通 Pod
+# 你现在 taints: null，表示 master 可调度
+kubeadm_master_schedulable: true

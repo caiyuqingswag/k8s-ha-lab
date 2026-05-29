@@ -1,0 +1,42 @@
+- name: Ensure kube-system namespace exists
+  command: kubectl get ns {{ kubevip_namespace }}
+  register: ns_check
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create kube-system namespace if missing
+  command: kubectl create ns {{ kubevip_namespace }}
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - ns_check.rc != 0
+
+- name: Apply kube-vip cloud controller ConfigMap
+  template:
+    src: kube-vip-cloud-controller-configmap.yaml.j2
+    dest: /tmp/kube-vip-cloud-controller-configmap.yaml
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply kube-vip cloud controller ConfigMap
+  command: kubectl apply -f /tmp/kube-vip-cloud-controller-configmap.yaml
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply kube-vip cloud controller RBAC & Deployment
+  command: kubectl apply -f {{ item }}
+  loop:
+    - "{{ role_path }}/files/kube-vip-cloud-controller.yaml"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply kube-vip LB RBAC
+  command: kubectl apply -f {{ role_path }}/files/kube-vip-lb-rbac.yaml
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply kube-vip LB DaemonSet
+  template:
+    src: kube-vip-lb.yaml.j2
+    dest: /tmp/kube-vip-lb.yaml
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Deploy kube-vip LB DaemonSet
+  command: kubectl apply -f /tmp/kube-vip-lb.yaml
+  when: inventory_hostname == groups['masters'][0]

@@ -1,0 +1,553 @@
+---
+# =========================
+# 1. System update and kernel upgrade
+# =========================
+
+- name: System update and kernel upgrade
+  hosts: all
+  become: true
+  roles:
+    - system_update
+  tags:
+    - update
+
+# =========================
+# 2. Common OS init
+# =========================
+
+- name: Common OS init
+  hosts: all
+  become: true
+  roles:
+    - common
+  tags:
+    - common
+
+# =========================
+# 3. Install container runtime
+# =========================
+
+- name: Install containerd
+  hosts: all
+  become: true
+  roles:
+    - containerd
+  tags:
+    - containerd
+
+# =========================
+# 4. Install Kubernetes packages
+# =========================
+
+- name: Install kubelet kubeadm kubectl
+  hosts: all
+  become: true
+  roles:
+    - kube
+  tags:
+    - kube
+
+# =========================
+# 5. Deploy kube-vip on first master before kubeadm init
+# master1-vip 使用 /etc/kubernetes/super-admin.conf
+# =========================
+
+- name: Deploy kube-vip for first control-plane node
+  hosts: master1-vip
+  become: true
+  roles:
+    - kube-vip
+  tags:
+    - kubevip
+    - init
+
+# =========================
+# 6. Kubeadm init on first master
+# =========================
+
+- name: Kubeadm init on first master
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  serial: 1
+  tasks:
+    - name: Init first control-plane node
+      ansible.builtin.import_role:
+        name: kubeadm
+        tasks_from: init.yml
+  tags:
+    - init
+
+# =========================
+# 7. Switch kube-vip on first master to admin.conf
+# =========================
+
+- name: Switch kube-vip on first master to admin.conf
+  hosts: master1-vip
+  become: true
+  tasks:
+    - name: Switch kube-vip kubeconfig to admin.conf
+      ansible.builtin.import_role:
+        name: kube-vip
+        tasks_from: use-admin-conf.yml
+  tags:
+    - kubevip
+    - init
+
+# =========================
+# 8. Install CLI tools on first master
+# =========================
+
+- name: Install CLI tools
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  roles:
+    - cli-tools
+  tags:
+    - cli
+
+# =========================
+# 9. Deploy Cilium CNI
+# =========================
+
+- name: Deploy Cilium CNI
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Install Cilium
+      ansible.builtin.import_role:
+        name: cni
+  tags:
+    - cilium
+
+# =========================
+# 10. Join other masters first
+# 注意：先 join，join 成功后其他 master 才会生成 /etc/kubernetes/admin.conf
+# =========================
+
+- name: Join other masters
+  hosts: othermaster-vip
+  become: true
+  serial: 1
+  tasks:
+    - name: Join control-plane node
+      ansible.builtin.import_role:
+        name: kubeadm
+        tasks_from: join_masters.yml
+  tags:
+    - join_masters
+
+# =========================
+# 11. Deploy kube-vip on other masters after join
+# othermaster-vip 使用 /etc/kubernetes/admin.conf
+# =========================
+
+- name: Deploy kube-vip for other control-plane nodes
+  hosts: othermaster-vip
+  become: true
+  roles:
+    - kube-vip
+  tags:
+    - kubevip
+    - join_masters
+
+# =========================
+# 12. Join workers
+# =========================
+
+- name: Join workers
+  hosts: nodes
+  become: true
+  serial: 3
+  tasks:
+    - name: Join worker node
+      ansible.builtin.import_role:
+        name: kubeadm
+        tasks_from: join_workers.yml
+  tags:
+    - join_workers
+
+# =========================
+# 13. Deploy kube-vip LoadBalancer
+# 先不启用
+# =========================
+
+# - name: Deploy kube-vip LoadBalancer
+#   hosts: "{{ groups['masters'][0] }}"
+#   become: true
+#   tasks:
+#     - name: Deploy kube-vip cloud provider / LoadBalancer
+#       ansible.builtin.import_role:
+#         name: kube-vip-loadbalance
+#   tags:
+#     - kubevip-lb
+
+
+- name: Install Rancher
+  hosts: all
+  become: true
+  roles:
+    - role: rancher
+  tags:
+    - rancher
+# =========================
+# Longhorn prerequisites
+# =========================
+
+- name: Install Longhorn prerequisites
+  hosts: all
+  become: true
+  roles:
+    - longhorn-prereq
+  tags:
+    - longhorn-prereq
+
+# =========================
+# Install Longhorn storage
+# =========================
+
+- name: Install Longhorn storage
+  hosts: all
+  become: true
+  roles:
+    - longhorn
+  tags:
+    - longhorn
+
+- name: Install local-path-provisioner
+  hosts: all
+  become: true
+  roles:
+    - role: local-path
+  tags:
+    - local-path
+
+# =========================
+# Metrics Server
+# =========================
+
+- name: Install metrics-server
+  hosts: all
+  become: true
+  roles:
+    - metrics-server
+  tags:
+    - metrics
+
+- name: Install cert-manager
+  hosts: all
+  become: true
+  roles:
+    - role: cert-manager
+  tags:
+    - cert
+
+# =========================
+# APISIX Public Gateway
+# 公网业务入口
+# 公网 CLB -> NodePort 30080
+# APISIXRoute: spec.ingressClassName = apisix-public
+# =========================
+
+- name: Install APISIX public gateway
+  hosts: all
+  become: true
+  roles:
+    - role: apisix
+      vars:
+        apisix_namespace: "apisix-gateway-public"
+        apisix_release_name: "apisix-public"
+        apisix_ingress_class_name: "apisix-public"
+        apisix_gateway_http_nodeport: 30080
+        apisix_gateway_https_nodeport: 30443
+        apisix_work_dir: "/etc/kubernetes/apisix-public"
+      tags:
+        - apisix-public
+        - gateway
+  tags:
+    - apisix-public
+    - gateway
+
+# =========================
+# APISIX Internal Gateway
+# 内部平台入口
+# 内网/白名单 CLB -> NodePort 30081
+# APISIXRoute: spec.ingressClassName = apisix-internal
+# =========================
+
+- name: Install APISIX internal gateway
+  hosts: all
+  become: true
+  roles:
+    - role: apisix
+      vars:
+        apisix_namespace: "apisix-gateway-internal"
+        apisix_release_name: "apisix-internal"
+        apisix_ingress_class_name: "apisix-internal"
+        apisix_gateway_http_nodeport: 30081
+        apisix_gateway_https_nodeport: 30444
+        apisix_work_dir: "/etc/kubernetes/apisix-internal"
+      tags:
+        - apisix-internal
+        - gateway
+  tags:
+    - apisix-internal
+    - gateway
+
+- name: Install Istio service mesh
+  hosts: all
+  become: true
+  roles:
+    - role: istio
+  tags:
+    - istio
+
+# =========================
+# Istio Internal Routes
+# 内部平台 Web UI 入口
+# =========================
+
+- name: Configure Istio internal routes
+  hosts: all
+  become: true
+  roles:
+    - role: istio-routes-internal
+      tags:
+        - istio-routes-internal
+  tags:
+    - istio-routes-internal
+
+# =========================
+# Istio Public Routes
+# 公网业务入口
+# =========================
+
+- name: Configure Istio public routes
+  hosts: all
+  become: true
+  roles:
+    - role: istio-routes-public
+      tags:
+        - istio-routes-public
+  tags:
+    - istio-routes-public
+
+# =========================
+# Istio Traffic Policies
+# 灰度 / 重试 / 超时 / 熔断
+# =========================
+
+- name: Configure Istio traffic policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-traffic-policies
+  tags:
+    - istio-traffic-policies
+
+- name: Configure Istio security policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-security-policies
+  tags:
+    - istio-security-policies
+
+# =========================
+# Istio Rate Limit Policies
+# Envoy local rate limit
+# =========================
+
+- name: Configure Istio rate limit policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-rate-limit-policies
+  tags:
+    - istio-rate-limit-policies
+
+# =========================
+# Istio Global Rate Limit
+# 全局限流：ratelimit service + Redis
+# =========================
+
+- name: Configure Istio global rate limit
+  hosts: all
+  become: true
+  roles:
+    - role: istio-global-ratelimit
+  tags:
+    - istio-global-ratelimit
+
+# =========================
+# Istio Authorization Policies
+# 服务间访问控制
+# =========================
+
+- name: Configure Istio authorization policies
+  hosts: all
+  become: true
+  roles:
+    - role: istio-authz-policies
+  tags:
+    - istio-authz-policies
+
+
+- name: Install Argo CD
+  hosts: all
+  become: true
+  roles:
+    - role: argocd
+  tags:
+    - argocd
+
+
+- name: Install Grafana
+  hosts: all
+  become: true
+  roles:
+    - role: grafana
+  tags:
+    - grafana
+
+- name: Install Loki
+  hosts: all
+  become: true
+  roles:
+    - role: loki
+  tags:
+    - loki
+
+- name: Install Grafana Alloy
+  hosts: all
+  become: true
+  roles:
+    - role: alloy
+  tags:
+    - alloy
+
+- name: Install kube-prometheus-stack
+  hosts: all
+  become: true
+  roles:
+    - role: kube-prometheus-stack
+  tags:
+    - prometheus
+
+- name: Install Velero backup
+  hosts: all
+  become: true
+  roles:
+    - role: velero
+  tags:
+    - velero
+
+
+- name: Configure APISIX internal routes
+  hosts: all
+  become: true
+  roles:
+    - role: apisix-routes-internal
+  tags:
+    - apisix-routes-internal
+
+# =========================
+# Kyverno Policy Engine
+# =========================
+
+- name: Install Kyverno
+  hosts: all
+  become: true
+  roles:
+    - role: kyverno
+  tags:
+    - kyverno
+
+- name: Install Kiali
+  hosts: all
+  become: true
+  roles:
+    - role: kiali
+  tags:
+    - kiali
+
+- name: Install Tempo
+  hosts: all
+  become: true
+  roles:
+    - role: tempo
+  tags:
+    - tempo
+# =========================
+# Kyverno Baseline Policies
+# 默认 Audit，不拦截
+# =========================
+
+- name: Configure Kyverno baseline policies
+  hosts: all
+  become: true
+  roles:
+    - role: kyverno-policies
+  tags:
+    - kyverno-policies
+
+- name: Install Verdaccio npm registry
+  hosts: all
+  become: true
+  roles:
+    - role: verdaccio
+  tags:
+    - verdaccio
+
+
+- name: Install Trivy Operator
+  hosts: all
+  become: true
+  roles:
+    - role: trivy-operator
+  tags:
+    - trivy-operator
+
+- name: Configure baseline NetworkPolicies
+  hosts: all
+  become: true
+  roles:
+    - role: network-policies
+  tags:
+    - network-policies
+
+
+- name: Install Sealed Secrets
+  hosts: all
+  become: true
+  roles:
+    - role: sealed-secrets
+  tags:
+    - sealed-secrets
+
+- name: Install JumpServer
+  hosts: all
+  become: true
+  roles:
+    - role: jumpserver
+  tags:
+    - jumpserver
+
+- name: Deploy NFS server
+  hosts: nfs-server
+  become: true
+  roles:
+    - nfs-server
+  tags:
+    - nfs
+
+# =========================
+# 15. Init directories on NFS server
+# =========================
+
+- name: Init directories on NFS server
+  hosts: nfs-server
+  become: true
+  roles:
+    - dirs
+  tags:
+    - dir

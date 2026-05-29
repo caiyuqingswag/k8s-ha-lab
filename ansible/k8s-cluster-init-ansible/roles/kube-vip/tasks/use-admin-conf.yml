@@ -1,0 +1,60 @@
+---
+# =========================
+# Switch kube-vip from super-admin.conf to admin.conf
+# Run this after kubeadm init on first master
+# =========================
+
+- name: Check kube-vip manifest exists
+  ansible.builtin.stat:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+  register: kube_vip_manifest_stat
+
+- name: Ensure kube-vip address is VIP IP
+  ansible.builtin.replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: '(\s*- name: address\s*\n\s*value: ")[^"]+(")'
+    replace: '\g<1>{{ kubevip_api_ip }}\g<2>'
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))
+
+- name: Switch kube-vip kubeconfig from super-admin.conf to admin.conf
+  ansible.builtin.replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: 'path: "/etc/kubernetes/super-admin\.conf"'
+    replace: 'path: "/etc/kubernetes/admin.conf"'
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))
+
+- name: Wait for kubelet to reload kube-vip static pod
+  ansible.builtin.pause:
+    seconds: 5
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))
+
+- name: Verify kube-vip now uses admin.conf
+  ansible.builtin.command:
+    argv:
+      - grep
+      - /etc/kubernetes/admin.conf
+      - /etc/kubernetes/manifests/kube-vip.yaml
+  changed_when: false
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))
+
+- name: Verify kube-vip address is VIP IP
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -A1
+      - "name: address"
+      - /etc/kubernetes/manifests/kube-vip.yaml
+  register: kube_vip_address_check
+  changed_when: false
+  failed_when: kubevip_api_ip not in kube_vip_address_check.stdout
+  when:
+    - kube_vip_manifest_stat.stat.exists
+    - inventory_hostname in (groups['master1-vip'] | default([]))

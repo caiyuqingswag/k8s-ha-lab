@@ -1,0 +1,62 @@
+# ===============================
+# Grafana Helm values
+# ===============================
+
+replicas: 1
+
+adminUser: "{{ grafana_admin_user }}"
+adminPassword: "{{ grafana_admin_password }}"
+
+service:
+  type: {{ grafana_service_type }}
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: false
+
+persistence:
+  enabled: {{ grafana_persistence_enabled | bool | lower }}
+  type: pvc
+  storageClassName: "{{ grafana_storage_class }}"
+  accessModes:
+    - ReadWriteOnce
+  size: "{{ grafana_storage_size }}"
+  finalizers:
+    - kubernetes.io/pvc-protection
+
+grafana.ini:
+  server:
+    root_url: "{{ grafana_root_url }}"
+    serve_from_sub_path: false
+  security:
+    admin_user: "{{ grafana_admin_user }}"
+  users:
+    allow_sign_up: false
+    auto_assign_org: true
+    auto_assign_org_role: Viewer
+  auth.anonymous:
+    enabled: false
+
+resources:
+  requests:
+    cpu: "{{ grafana_cpu_request }}"
+    memory: "{{ grafana_memory_request }}"
+  limits:
+    cpu: "{{ grafana_cpu_limit }}"
+    memory: "{{ grafana_memory_limit }}"
+
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    searchNamespace: ALL
+    folderAnnotation: grafana_folder
+    provider:
+      allowUiUpdates: true
+  datasources:
+    enabled: true
+    label: grafana_datasource
+    labelValue: "1"
+    searchNamespace: ALL

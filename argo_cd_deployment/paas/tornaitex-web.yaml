@@ -1,0 +1,65 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: tornaitex-web
+  namespace: paas-components
+  labels:
+    app: tornaitex-web
+    version: private
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tornaitex-web
+      version: private
+  template:
+    metadata:
+      labels:
+        app: tornaitex-web
+        version: private
+    spec:
+      containers:
+        - name: tornaitex-web
+          image: node5:443/ipaas-web/tornaitex-web:private
+          ports:
+            - containerPort: 7070
+              protocol: TCP
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: APP_MODE
+              value: private
+            - name: APP_VERSION
+              value: private
+          resources:
+            requests:
+              cpu: 300m
+              memory: 1000Mi
+            limits:
+              cpu: 1000m
+              memory: 2500Mi
+      imagePullSecrets:
+        - name: harbor-secret
+  strategy:
+    type: RollingUpdate
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tornaitex-web-test
+  namespace: paas-components
+  labels:
+    app: tornaitex-web
+    version: private
+spec:
+  sessionAffinity: None
+  type: NodePort
+  selector:
+    app: tornaitex-web
+  ports:
+    - name: extport
+      port: 80
+      protocol: TCP
+      nodePort: 30071
+      targetPort: 80

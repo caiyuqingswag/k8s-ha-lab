@@ -1,0 +1,56 @@
+---
+- name: Check if cilium CLI already installed
+  ansible.builtin.command: cilium version --client
+  register: cilium_check
+  failed_when: false
+  changed_when: false
+
+- name: Remove old cilium temp dir
+  ansible.builtin.file:
+    path: "{{ cilium_tmp_dir }}"
+    state: absent
+  when: cilium_check.rc != 0
+
+- name: Create temp directory for cilium CLI
+  ansible.builtin.file:
+    path: "{{ cilium_tmp_dir }}"
+    state: directory
+    mode: "0755"
+  when: cilium_check.rc != 0
+
+- name: Copy Cilium CLI archive to node
+  ansible.builtin.copy:
+    src: "{{ cilium_cli_archive }}"
+    dest: "{{ cilium_tmp_dir }}/{{ cilium_cli_archive }}"
+    mode: "0644"
+  when: cilium_check.rc != 0
+
+- name: Extract Cilium CLI
+  ansible.builtin.unarchive:
+    src: "{{ cilium_tmp_dir }}/{{ cilium_cli_archive }}"
+    dest: "{{ cilium_tmp_dir }}"
+    remote_src: true
+  when: cilium_check.rc != 0
+
+- name: Ensure /usr/local/bin exists
+  ansible.builtin.file:
+    path: /usr/local/bin
+    state: directory
+    mode: "0755"
+
+- name: Install Cilium CLI binary
+  ansible.builtin.copy:
+    src: "{{ cilium_tmp_dir }}/cilium"
+    dest: /usr/local/bin/cilium
+    mode: "0755"
+    remote_src: true
+  when: cilium_check.rc != 0
+
+- name: Verify Cilium CLI installation
+  ansible.builtin.command: cilium version --client
+  register: cilium_version_result
+  changed_when: false
+
+- name: Show Cilium CLI version
+  ansible.builtin.debug:
+    msg: "{{ cilium_version_result.stdout }}"

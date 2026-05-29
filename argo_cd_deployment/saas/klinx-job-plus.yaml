@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-headless
+  namespace: saas
+  labels:
+    app: klinx-job-admin
+spec:
+  clusterIP: None
+  selector:
+    app: klinx-job-admin
+  ports:
+    - name: tcp-7768
+      port: 7768
+      targetPort: 7768
+    - name: tcp-7767
+      port: 7767
+      targetPort: 7767
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: klinx-job-admin
+  namespace: saas
+  labels:
+    app: klinx-job-admin
+spec:
+  type: ClusterIP
+  selector:
+    app: klinx-job-admin
+  ports:
+    - name: http
+      port: 7767           # 集群内访问端口
+      targetPort: 7767     # 容器端口，对应健康检查与 Web 管理
+      protocol: TCP
+    - name: tcp-7768
+      port: 7768
+      targetPort: 7768
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: klinx-job-admin
+  namespace: saas
+  labels:
+    app: klinx-job-admin
+spec:
+  serviceName: job-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: klinx-job-admin
+  template:
+    metadata:
+      labels:
+        app: klinx-job-admin
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: init-nacos
+          image: busybox:1.36
+          command:
+            - sh
+          args:
+            - "-c"
+            - until nc -vz nacos-headless.basic 8848; do echo waiting for nacos; sleep 2; done
+      containers:
+        - name: klinx-job-admin
+          image: node5:443/itex-biz/klinx-job-plus:private_ha
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: saas-config
+          ports:
+            - name: tcp-7767
+              containerPort: 7767
+            - name: tcp-7768
+              containerPort: 7768
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /xxl-job-admin/actuator/health/liveness
+              port: 7767
+          readinessProbe:
+            httpGet:
+              path: /xxl-job-admin/actuator/health/readiness
+              port: 7767
+          resources:
+            requests:
+              cpu: 100m
+              memory: 500Mi
+            limits:
+              cpu: 1000m
+              memory: 2000Mi
+      volumes:
+        - name: tmp
+          emptyDir: { }
+  podManagementPolicy: Parallel

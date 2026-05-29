@@ -1,0 +1,17 @@
+---
+- name: Apply sysctl
+  ansible.builtin.command: sysctl --system
+
+- name: Reexec systemd
+  ansible.builtin.command: systemctl daemon-reexec
+
+- name: Restart systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd.service
+    state: restarted
+    daemon_reload: true
+
+- name: Restart journald
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted

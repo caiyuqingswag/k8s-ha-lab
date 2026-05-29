@@ -1,0 +1,35 @@
+﻿# ===============================
+# Rancher Helm values
+# Single-instance mode
+# ===============================
+
+hostname: "{{ rancher_hostname }}"
+
+replicas: {{ rancher_replicas }}
+
+bootstrapPassword: "{{ rancher_bootstrap_password }}"
+
+ingress:
+  enabled: {{ rancher_ingress_enabled | bool | lower }}
+
+tls: "{{ rancher_tls_source }}"
+
+rancherImage: "{{ rancher_image_repository }}"
+rancherImageTag: "{{ rancher_image_tag }}"
+
+resources:
+  requests:
+    cpu: "{{ rancher_cpu_request }}"
+    memory: "{{ rancher_memory_request }}"
+  limits:
+    cpu: "{{ rancher_cpu_limit }}"
+    memory: "{{ rancher_memory_limit }}"
+
+# 单体架构不做 pod anti-affinity 强约束
+antiAffinity: "preferred"
+
+# 你已经有 cert-manager，但这里不使用 Rancher 自带证书申请
+{% if rancher_certmanager_version | length > 0 %}
+certmanager:
+  version: "{{ rancher_certmanager_version }}"
+{% endif %}

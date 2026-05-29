@@ -1,0 +1,93 @@
+﻿# ===============================
+# kube-prometheus-stack values
+# ===============================
+
+crds:
+  enabled: true
+
+grafana:
+  enabled: {{ prometheus_grafana_enabled | bool | lower }}
+
+prometheusOperator:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    replicas: {{ alertmanager_replicas }}
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "{{ alertmanager_storage_class }}"
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: "{{ alertmanager_storage_size }}"
+    resources:
+      requests:
+        cpu: "{{ alertmanager_cpu_request }}"
+        memory: "{{ alertmanager_memory_request }}"
+      limits:
+        cpu: "{{ alertmanager_cpu_limit }}"
+        memory: "{{ alertmanager_memory_limit }}"
+
+prometheus:
+  enabled: true
+  prometheusSpec:
+    enableRemoteWriteReceiver: true
+    replicas: {{ prometheus_replicas }}
+    retention: "{{ prometheus_retention }}"
+
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "{{ prometheus_storage_class }}"
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: "{{ prometheus_storage_size }}"
+
+    resources:
+      requests:
+        cpu: "{{ prometheus_cpu_request }}"
+        memory: "{{ prometheus_memory_request }}"
+      limits:
+        cpu: "{{ prometheus_cpu_limit }}"
+        memory: "{{ prometheus_memory_limit }}"
+
+defaultRules:
+  create: true
+
+kubeApiServer:
+  enabled: true
+
+kubelet:
+  enabled: true
+
+kubeControllerManager:
+  enabled: true
+
+coreDns:
+  enabled: true
+
+kubeEtcd:
+  enabled: true
+
+kubeScheduler:
+  enabled: true
+
+kubeProxy:
+  enabled: false

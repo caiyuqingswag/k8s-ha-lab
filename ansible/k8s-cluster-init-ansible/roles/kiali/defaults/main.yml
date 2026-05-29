@@ -1,0 +1,57 @@
+﻿---
+# =========================
+# Kiali Operator + Kiali CR
+# =========================
+
+kiali_enabled: true
+
+# Helm chart
+kiali_operator_chart_archive: "kiali-operator-2.26.0.tgz"
+kiali_operator_release_name: "kiali-operator"
+
+# namespaces
+kiali_operator_namespace: "kiali-operator"
+kiali_instance_namespace: "istio-system"
+
+# work dir on first master
+kiali_work_dir: "/etc/kubernetes/kiali"
+
+# Kiali UI
+kiali_instance_name: "kiali"
+kiali_hostname: "kiali.itexcloud.com"
+
+# anonymous: 内网/白名单环境最简单
+# token: 使用 Kubernetes token 登录
+kiali_auth_strategy: "anonymous"
+
+# Istio namespace
+kiali_istio_namespace: "istio-system"
+
+# Prometheus 地址
+kiali_prometheus_url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+
+# Grafana 地址
+kiali_grafana_enabled: true
+kiali_grafana_internal_url: "http://grafana.monitoring.svc.cluster.local"
+kiali_grafana_external_url: "https://grafana.itexcloud.com"
+
+# Tracing / Tempo
+# 如果 Tempo 已装好，可以改 true
+kiali_tracing_enabled: true
+kiali_tracing_internal_url: "http://tempo.tracing.svc.cluster.local:3200"
+kiali_tracing_external_url: "https://grafana.itexcloud.com"
+kiali_tempo_datasource_uid: "tempo"
+
+# Kiali resources
+kiali_cpu_request: "100m"
+kiali_memory_request: "256Mi"
+kiali_cpu_limit: "1"
+kiali_memory_limit: "1Gi"
+
+# Operator resources
+kiali_operator_cpu_request: "100m"
+kiali_operator_memory_request: "128Mi"
+kiali_operator_cpu_limit: "500m"
+kiali_operator_memory_limit: "512Mi"
+
+kiali_helm_timeout: "10m"

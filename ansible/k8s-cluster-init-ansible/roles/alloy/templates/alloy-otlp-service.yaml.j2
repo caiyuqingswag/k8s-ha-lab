@@ -1,0 +1,25 @@
+﻿{% if alloy_traces_enabled | bool %}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ alloy_otlp_service_name }}
+  namespace: {{ alloy_namespace }}
+  labels:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/instance: alloy
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/instance: alloy
+  ports:
+    - name: otlp-grpc
+      port: {{ alloy_otlp_grpc_port }}
+      targetPort: {{ alloy_otlp_grpc_port }}
+      protocol: TCP
+    - name: otlp-http
+      port: {{ alloy_otlp_http_port }}
+      targetPort: {{ alloy_otlp_http_port }}
+      protocol: TCP
+{% endif %}

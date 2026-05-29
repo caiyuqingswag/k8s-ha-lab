@@ -1,0 +1,194 @@
+﻿---
+# =========================
+# Install Grafana Alloy by offline Helm chart
+# Logs -> Loki
+# Traces -> Tempo
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Alloy working directory exists
+  ansible.builtin.file:
+    path: "{{ alloy_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy Alloy Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ alloy_chart_archive }}"
+    dest: "{{ alloy_work_dir }}/{{ alloy_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Alloy values.yaml
+  ansible.builtin.template:
+    src: alloy-values.yaml.j2
+    dest: "{{ alloy_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Alloy OTLP service
+  ansible.builtin.template:
+    src: alloy-otlp-service.yaml.j2
+    dest: "{{ alloy_work_dir }}/alloy-otlp-service.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create Alloy namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ alloy_namespace }}"
+  register: alloy_ns_create
+  failed_when:
+    - alloy_ns_create.rc != 0
+    - "'AlreadyExists' not in alloy_ns_create.stderr"
+  changed_when: alloy_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Alloy OTLP service
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ alloy_work_dir }}/alloy-otlp-service.yaml"
+  register: alloy_otlp_service_apply
+  changed_when: "'created' in alloy_otlp_service_apply.stdout or 'configured' in alloy_otlp_service_apply.stdout"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - alloy_traces_enabled | bool
+
+- name: Install or upgrade Alloy via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - alloy
+      - "{{ alloy_work_dir }}/{{ alloy_chart_archive }}"
+      - --namespace
+      - "{{ alloy_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ alloy_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ alloy_helm_timeout }}"
+      - --wait
+  register: alloy_helm_result
+  changed_when: "'has been upgraded' in alloy_helm_result.stdout or 'has been installed' in alloy_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Alloy Helm result
+  ansible.builtin.debug:
+    msg: "{{ alloy_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Restart Alloy DaemonSet to load new config
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ alloy_namespace }}"
+      - rollout
+      - restart
+      - ds/alloy
+  changed_when: true
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Alloy DaemonSet
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ alloy_namespace }}"
+      - rollout
+      - status
+      - ds/alloy
+      - --timeout=10m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Alloy pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ alloy_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: alloy_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Alloy pods
+  ansible.builtin.debug:
+    msg: "{{ alloy_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Alloy services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ alloy_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: alloy_services
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Alloy services
+  ansible.builtin.debug:
+    msg: "{{ alloy_services.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Alloy rendered trace config
+  ansible.builtin.command:
+    argv:
+      - bash
+      - -lc
+      - "grep -n 'otelcol.receiver.otlp' -A60 {{ alloy_work_dir }}/values.yaml || true"
+  register: alloy_trace_config_check
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Alloy rendered trace config
+  ansible.builtin.debug:
+    msg: "{{ alloy_trace_config_check.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

@@ -1,0 +1,49 @@
+﻿---
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Istio traffic policies working directory exists
+  ansible.builtin.file:
+    path: "{{ istio_traffic_policies_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Istio traffic policies
+  ansible.builtin.template:
+    src: istio-traffic-policies.yaml.j2
+    dest: "{{ istio_traffic_policies_work_dir }}/istio-traffic-policies.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Istio traffic policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ istio_traffic_policies_work_dir }}/istio-traffic-policies.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Istio traffic policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - destinationrule,virtualservice
+      - -A
+  register: istio_traffic_policies_result
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Istio traffic policies
+  ansible.builtin.debug:
+    msg: "{{ istio_traffic_policies_result.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

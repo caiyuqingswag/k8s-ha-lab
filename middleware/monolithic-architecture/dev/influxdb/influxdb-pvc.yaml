@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-influxdb-dev
+  namespace: dev-basic
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: influxdb-nfs-dev
+  resources:
+    requests:
+      storage: 200Gi
+  volumeName: pv-influxdb-dev

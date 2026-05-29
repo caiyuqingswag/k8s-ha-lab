@@ -1,0 +1,79 @@
+# ===============================
+# Loki Helm values
+# singleBinary + filesystem + {{ global_storage_class }}
+# ===============================
+
+deploymentMode: {{ loki_deployment_mode }}
+
+loki:
+  auth_enabled: false
+
+  commonConfig:
+    replication_factor: 1
+
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  storage:
+    type: filesystem
+
+  limits_config:
+    retention_period: {{ loki_retention_period }}
+    allow_structured_metadata: true
+    volume_enabled: true
+
+  compactor:
+    retention_enabled: {{ loki_retention_enabled | bool | lower }}
+    delete_request_store: filesystem
+
+  ruler:
+    enable_api: true
+
+singleBinary:
+  replicas: {{ loki_single_binary_replicas }}
+
+  persistence:
+    enabled: true
+    storageClass: "{{ loki_storage_class }}"
+    size: "{{ loki_storage_size }}"
+
+  resources:
+    requests:
+      cpu: "{{ loki_cpu_request }}"
+      memory: "{{ loki_memory_request }}"
+    limits:
+      cpu: "{{ loki_cpu_limit }}"
+      memory: "{{ loki_memory_limit }}"
+
+# 关闭其他模式组件
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+gateway:
+  enabled: true
+
+test:
+  enabled: false
+
+monitoring:
+  dashboards:
+    enabled: false
+  rules:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false

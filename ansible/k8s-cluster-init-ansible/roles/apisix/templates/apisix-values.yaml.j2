@@ -1,0 +1,66 @@
+﻿# ===============================
+# Apache APISIX Helm values
+# For apisix chart 2.14.x
+# Supports public/internal gateway
+# ===============================
+
+service:
+  type: {{ apisix_gateway_type }}
+
+  http:
+    enabled: true
+    servicePort: 80
+    containerPort: 9080
+{% if apisix_gateway_type == "NodePort" %}
+    nodePort: {{ apisix_gateway_http_nodeport }}
+{% endif %}
+
+  tls:
+    servicePort: 443
+{% if apisix_gateway_type == "NodePort" %}
+    nodePort: {{ apisix_gateway_https_nodeport }}
+{% endif %}
+
+apisix:
+  ssl:
+    enabled: false
+
+admin:
+  enabled: true
+  type: ClusterIP
+  credentials:
+    admin: "{{ apisix_admin_key }}"
+
+ingress-controller:
+  enabled: {{ apisix_ingress_controller_enabled | bool | lower }}
+
+  config:
+    kubernetes:
+      ingressClass: "{{ apisix_ingress_class_name }}"
+      defaultIngressClass: false
+
+    apisix:
+      serviceName: "{{ apisix_release_name }}-admin"
+      serviceNamespace: "{{ apisix_namespace }}"
+      adminAPIVersion: "v3"
+
+  apisix:
+    adminService:
+      name: "{{ apisix_release_name }}-admin"
+      namespace: "{{ apisix_namespace }}"
+
+  gatewayProxy:
+    createDefault: {{ apisix_gateway_proxy_create_default | bool | lower }}
+    provider:
+      type: ControlPlane
+      controlPlane:
+        endpoints:
+          - "http://{{ apisix_release_name }}-admin.{{ apisix_namespace }}.svc.cluster.local:9180"
+
+etcd:
+  replicaCount: {{ apisix_etcd_replica_count }}
+
+  persistence:
+    enabled: {{ apisix_etcd_persistence_enabled | bool | lower }}
+    size: "{{ apisix_etcd_persistence_size }}"
+    storageClass: "{{ apisix_etcd_storage_class }}"

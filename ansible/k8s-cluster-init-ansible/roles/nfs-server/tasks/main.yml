@@ -1,0 +1,57 @@
+---
+# =========================
+# Install NFS server
+# =========================
+
+- name: Install NFS server packages (Ubuntu)
+  ansible.builtin.package:
+    name: nfs-kernel-server
+    state: present
+
+# =========================
+# Shared directory
+# =========================
+
+- name: Ensure NFS shared directory exists
+  ansible.builtin.file:
+    path: "{{ nfs_dir }}"
+    state: directory
+    owner: nobody
+    group: nogroup
+    mode: "0777"
+
+# =========================
+# /etc/exports
+# =========================
+
+- name: Configure /etc/exports for Kubernetes
+  ansible.builtin.blockinfile:
+    path: /etc/exports
+    marker: "# {mark} ANSIBLE K8S NFS"
+    block: |
+      {{ nfs_dir }} *({{ nfs_export_opts | trim }})
+    create: true
+  notify: Reload NFS exports
+
+# =========================
+# Enable NFS service
+# =========================
+
+- name: Enable and start NFS server
+  ansible.builtin.systemd:
+    name: nfs-kernel-server
+    enabled: true
+    state: started
+
+# =========================
+# Verify exports
+# =========================
+
+- name: Show current NFS exports
+  ansible.builtin.command: exportfs -v
+  register: nfs_exports
+  changed_when: false
+
+- name: Debug NFS exports
+  ansible.builtin.debug:
+    var: nfs_exports.stdout_lines

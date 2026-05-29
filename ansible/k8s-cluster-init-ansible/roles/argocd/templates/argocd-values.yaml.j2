@@ -1,0 +1,32 @@
+# ===============================
+# Argo CD Helm values
+# ===============================
+
+global:
+  domain: ""
+
+configs:
+  params:
+    server.insecure: {{ argocd_server_insecure | bool | lower }}
+
+server:
+  service:
+    type: {{ argocd_server_service_type }}
+
+controller:
+  replicas: 1
+
+repoServer:
+  replicas: 1
+
+applicationSet:
+  replicas: 1
+
+redis:
+  enabled: {{ argocd_redis_enabled | bool | lower }}
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false

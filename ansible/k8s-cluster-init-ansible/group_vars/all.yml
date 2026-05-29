@@ -1,0 +1,36 @@
+k8s_version: "1.36.1"
+image_repo: "registry.cn-hangzhou.aliyuncs.com/google_containers"
+#pause_image: "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9"
+
+# kubeadm.yaml的网段
+pod_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+
+# kube-proxy / kubelet
+kubeproxy_mode: "nftables"
+cgroup_driver: "systemd"
+
+#system_update的控制台兼master1
+system_update_control_host: master1
+
+# kubeadm HA endpoint
+control_plane_endpoint: "prod-hz-01-api:6443"
+
+# =========================
+# Global storage class
+# 不同环境只改这里longhorn  /  local-path
+# =========================
+global_storage_class: "local-path"
+
+
+# =========================
+# 外部minio备份velero
+# =========================
+velero_bucket: "velero-prod-hz-01"
+velero_region: "us-east-1"
+velero_s3_url: "https://minio.your-domain.com"
+velero_s3_force_path_style: "true"
+velero_s3_insecure_skip_tls_verify: "false"
+
+velero_access_key_id: "你的 MinIO AccessKey"
+velero_secret_access_key: "你的 MinIO SecretKey"

@@ -1,0 +1,42 @@
+﻿---
+# =========================
+# NetworkPolicy baseline
+# For Cilium / Kubernetes NetworkPolicy
+# =========================
+
+network_policies_work_dir: "/etc/kubernetes/network-policies"
+
+# 只给业务 namespace 加默认隔离
+# 平台 namespace 先不要加，避免误伤
+network_policy_target_namespaces:
+  - prod-itex-components
+  - prod-itex-servers
+  - prod-paas-components
+  - prod-srm-components
+  - stable-itex-components
+  - stable-itex-servers
+
+# APISIX 网关 namespace
+network_policy_gateway_namespaces:
+  - gateway-public
+  - gateway-internal
+
+# 监控 namespace，允许 Prometheus 抓取业务 metrics
+network_policy_monitoring_namespace: "monitoring"
+
+# 是否允许同 namespace 内 Pod 互通
+network_policy_allow_same_namespace: true
+
+# 是否允许 APISIX 访问业务 namespace
+network_policy_allow_gateway_ingress: true
+
+# 是否允许 monitoring 访问业务 namespace
+network_policy_allow_monitoring_ingress: true
+
+# egress 默认拒绝很容易误伤，先关闭
+network_policy_enable_egress_baseline: false
+
+# DNS namespace，一般是 kube-system
+network_policy_dns_namespace: "kube-system"
+network_policy_dns_pod_selector:
+  k8s-app: kube-dns

@@ -1,0 +1,163 @@
+---
+# =========================
+# Install cert-manager by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure cert-manager working directory exists
+  ansible.builtin.file:
+    path: "{{ cert_manager_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy cert-manager Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ cert_manager_chart_archive }}"
+    dest: "{{ cert_manager_work_dir }}/{{ cert_manager_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render cert-manager values.yaml
+  ansible.builtin.template:
+    src: cert-manager-values.yaml.j2
+    dest: "{{ cert_manager_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create cert-manager namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ cert_manager_namespace }}"
+  register: cert_manager_ns_create
+  failed_when:
+    - cert_manager_ns_create.rc != 0
+    - "'AlreadyExists' not in cert_manager_ns_create.stderr"
+  changed_when: cert_manager_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade cert-manager via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - cert-manager
+      - "{{ cert_manager_work_dir }}/{{ cert_manager_chart_archive }}"
+      - --namespace
+      - "{{ cert_manager_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ cert_manager_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ cert_manager_helm_timeout }}"
+      - --wait
+  register: cert_manager_helm_result
+  changed_when: "'has been upgraded' in cert_manager_helm_result.stdout or 'has been installed' in cert_manager_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show cert-manager Helm result
+  ansible.builtin.debug:
+    msg: "{{ cert_manager_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for cert-manager deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ cert_manager_namespace }}"
+      - rollout
+      - status
+      - deploy/cert-manager
+      - --timeout=5m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for cert-manager webhook deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ cert_manager_namespace }}"
+      - rollout
+      - status
+      - deploy/cert-manager-webhook
+      - --timeout=5m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for cert-manager cainjector deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ cert_manager_namespace }}"
+      - rollout
+      - status
+      - deploy/cert-manager-cainjector
+      - --timeout=5m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Verify cert-manager CRDs
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - crd
+      - certificates.cert-manager.io
+  register: cert_manager_crd_check
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show cert-manager pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ cert_manager_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: cert_manager_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print cert-manager pods
+  ansible.builtin.debug:
+    msg: "{{ cert_manager_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

@@ -1,0 +1,103 @@
+---
+# =========================
+# kubeadm init on first master
+# =========================
+
+- name: Ensure kubeadm working directory exists
+  ansible.builtin.file:
+    path: /etc/kubernetes/kubeadm
+    state: directory
+    mode: "0755"
+
+- name: Render kubeadm init config
+  ansible.builtin.template:
+    src: kubeadm-init.yaml.j2
+    dest: /etc/kubernetes/kubeadm/kubeadm-init.yaml
+    mode: "0644"
+
+- name: Check if Kubernetes cluster is already initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_admin_conf
+
+- name: Run kubeadm init without kube-proxy
+  ansible.builtin.command: >
+    kubeadm init
+    --config=/etc/kubernetes/kubeadm/kubeadm-init.yaml
+    --upload-certs
+    --skip-phases=addon/kube-proxy
+  register: kubeadm_init_result
+  when:
+    - not kubeadm_admin_conf.stat.exists
+    - kubeadm_skip_kube_proxy | default(true)
+
+- name: Run kubeadm init with kube-proxy
+  ansible.builtin.command: >
+    kubeadm init
+    --config=/etc/kubernetes/kubeadm/kubeadm-init.yaml
+    --upload-certs
+  register: kubeadm_init_result
+  when:
+    - not kubeadm_admin_conf.stat.exists
+    - not (kubeadm_skip_kube_proxy | default(true))
+
+- name: Show kubeadm init output
+  ansible.builtin.debug:
+    msg: "{{ kubeadm_init_result.stdout_lines | default([]) }}"
+  when:
+    - kubeadm_init_result is defined
+    - kubeadm_init_result.stdout_lines is defined
+
+- name: Ensure ubuntu .kube directory exists
+  ansible.builtin.file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Copy admin.conf to ubuntu kubeconfig
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/ubuntu/.kube/config
+    remote_src: true
+    owner: ubuntu
+    group: ubuntu
+    mode: "0600"
+
+- name: Ensure root .kube directory exists
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: "0700"
+
+- name: Copy admin.conf to root kubeconfig
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    mode: "0600"
+
+- name: Verify kube-proxy is not installed
+  ansible.builtin.command: >
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf
+    -n kube-system get ds kube-proxy
+  register: kube_proxy_check
+  failed_when: false
+  changed_when: false
+
+- name: Show kube-proxy status
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        'OK: kube-proxy is not installed.'
+        if kube_proxy_check.rc != 0
+        else 'WARNING: kube-proxy DaemonSet exists.'
+      }}
+
+- name: Verify kube-vip endpoint is reachable after init
+  ansible.builtin.command: >
+    curl -k --max-time 5 https://{{ kubevip_api_ip }}:6443/readyz
+  register: vip_readyz
+  changed_when: false
+  failed_when: vip_readyz.rc != 0 or 'ok' not in vip_readyz.stdout

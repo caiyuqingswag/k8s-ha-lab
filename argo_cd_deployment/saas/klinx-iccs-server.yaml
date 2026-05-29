@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: klinx-iccs-server
+  namespace: saas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: klinx-iccs-server
+  template:
+    metadata:
+      labels:
+        app: klinx-iccs-server
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: klinx-iccs-server
+          imagePullPolicy: Always
+          image: node5:443/itex-biz/klinx-iccs-server:private_jingyuan_qa_sit
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: saas-config
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 6500Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: root-logs
+              mountPath: /root/logs
+            - name: app-logs
+              mountPath: /Users/texpro/data/projects/logs/klinx-iccs-server
+            - name: heapdump
+              mountPath: /heapdump
+          ports:
+            - name: tcp-8707
+              containerPort: 8707
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8707
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 6
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8707
+              scheme: HTTP
+            initialDelaySeconds: 6
+            periodSeconds: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8707
+              scheme: HTTP
+            initialDelaySeconds: 6
+            failureThreshold: 30
+            periodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: { }
+        - name: root-logs
+          emptyDir: { }
+        - name: app-logs
+          emptyDir: { }
+        - name: heapdump
+          persistentVolumeClaim:
+            claimName: heapdump-pvc      
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  progressDeadlineSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: klinx-iccs-server
+  namespace: saas
+spec:
+  type: ClusterIP
+  selector:
+    app: klinx-iccs-server
+  ports:
+    - name: tcp-8707
+      port: 8707
+      protocol: TCP
+      targetPort: 8707

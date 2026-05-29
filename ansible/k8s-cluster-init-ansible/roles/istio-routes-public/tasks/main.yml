@@ -1,0 +1,49 @@
+﻿---
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure Istio public routes working directory exists
+  ansible.builtin.file:
+    path: "{{ istio_routes_public_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Istio public routes
+  ansible.builtin.template:
+    src: istio-routes-public.yaml.j2
+    dest: "{{ istio_routes_public_work_dir }}/istio-routes-public.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Istio public routes
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ istio_routes_public_work_dir }}/istio-routes-public.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show Istio public routes
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - gateway,virtualservice
+      - -A
+  register: istio_public_routes_result
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print Istio public routes
+  ansible.builtin.debug:
+    msg: "{{ istio_public_routes_result.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]

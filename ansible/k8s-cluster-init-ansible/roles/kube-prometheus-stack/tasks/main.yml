@@ -1,0 +1,162 @@
+﻿---
+# =========================
+# Install kube-prometheus-stack by offline Helm chart
+# Run Helm operations from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure kube-prometheus-stack working directory exists
+  ansible.builtin.file:
+    path: "{{ prometheus_work_dir }}"
+    state: directory
+    mode: "0755"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Copy kube-prometheus-stack Helm chart to first master
+  ansible.builtin.copy:
+    src: "{{ prometheus_chart_archive }}"
+    dest: "{{ prometheus_work_dir }}/{{ prometheus_chart_archive }}"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render kube-prometheus-stack values.yaml
+  ansible.builtin.template:
+    src: kube-prometheus-stack-values.yaml.j2
+    dest: "{{ prometheus_work_dir }}/values.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Render Grafana Prometheus datasource
+  ansible.builtin.template:
+    src: grafana-prometheus-datasource.yaml.j2
+    dest: "{{ prometheus_work_dir }}/grafana-prometheus-datasource.yaml"
+    mode: "0644"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Check kube-apiserver is reachable
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - --raw=/readyz
+  register: apiserver_ready
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: apiserver_ready.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Create monitoring namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - create
+      - namespace
+      - "{{ prometheus_namespace }}"
+  register: prometheus_ns_create
+  failed_when:
+    - prometheus_ns_create.rc != 0
+    - "'AlreadyExists' not in prometheus_ns_create.stderr"
+  changed_when: prometheus_ns_create.rc == 0
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Install or upgrade kube-prometheus-stack via Helm
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - kube-prometheus-stack
+      - "{{ prometheus_work_dir }}/{{ prometheus_chart_archive }}"
+      - --namespace
+      - "{{ prometheus_namespace }}"
+      - --create-namespace
+      - -f
+      - "{{ prometheus_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - --timeout
+      - "{{ prometheus_helm_timeout }}"
+      - --wait
+  register: prometheus_helm_result
+  changed_when: "'has been upgraded' in prometheus_helm_result.stdout or 'has been installed' in prometheus_helm_result.stdout"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Apply Grafana Prometheus datasource
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - "{{ prometheus_work_dir }}/grafana-prometheus-datasource.yaml"
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show kube-prometheus-stack Helm result
+  ansible.builtin.debug:
+    msg: "{{ prometheus_helm_result.stdout_lines | default([]) }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for Prometheus Operator
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ prometheus_namespace }}"
+      - rollout
+      - status
+      - deploy/kube-prometheus-stack-operator
+      - --timeout=10m
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show monitoring pods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ prometheus_namespace }}"
+      - get
+      - pods
+      - -o
+      - wide
+  register: monitoring_pods
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print monitoring pods
+  ansible.builtin.debug:
+    msg: "{{ monitoring_pods.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Show monitoring services
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - -n
+      - "{{ prometheus_namespace }}"
+      - get
+      - svc
+      - -o
+      - wide
+  register: monitoring_svcs
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print monitoring services
+  ansible.builtin.debug:
+    msg: "{{ monitoring_svcs.stdout_lines }}"
+  when: inventory_hostname == groups['masters'][0]
