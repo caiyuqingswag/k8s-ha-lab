@@ -55,6 +55,10 @@ alloy_host_journal_max_age: "10m"
 
 # containerd 生产建议配置，只保留异常/关键日志
 alloy_containerd_keep_regex: "TaskOOM event|exit_status:137|OOM|shim disconnected|cleaning up dead shim|context canceled|DeadlineExceeded|level=error|level=warn|level=warning"
+
+# kubelet 关键日志关键字
+alloy_kubelet_keep_regex: "ContainerStatus from runtime service failed|ListPodSandbox|Failed to list pod sandboxes|GenericPLEG: Unable to retrieve pods|DeadlineExceeded|context canceled|failed to sync configmap cache|PLEG|runtime service failed"
+
 # =========================
 # Traces -> Tempo
 # =========================
