@@ -41,15 +41,19 @@ alloy_keep_current_node_only: true
 
 alloy_host_journal_enabled: true
 
-# 建议先采 /run/log/journal，避免回灌历史过多
+# Ubuntu 24.04 默认建议采 /var/log/journal
+# /run/log/journal 可能没有持久日志
 # 如果后续发现查不到日志，可改成 /var/log/journal
-alloy_host_journal_path: "/run/log/journal"
+alloy_host_journal_path: "/var/log/journal"
 
 # Alloy 启动时最多回看多久，避免首次部署推大量历史日志
 alloy_host_journal_max_age: "10m"
 
 # containerd 关键日志关键字
-alloy_containerd_keep_regex: "TaskOOM|exit_status|OOM|137|shim|context canceled|DeadlineExceeded"
+#alloy_containerd_keep_regex: "TaskOOM|exit_status|OOM|137|shim|context canceled|DeadlineExceeded"
+
+#containerd 临时关键日志关键字
+alloy_containerd_keep_regex: "TaskOOM|exit_status|OOM|137|shim|context canceled|DeadlineExceeded|RunPodSandbox|StartContainer|StopContainer"
 
 # kubelet 关键日志关键字
 alloy_kubelet_keep_regex: "ContainerStatus from runtime service failed|ListPodSandbox|Failed to list pod sandboxes|GenericPLEG: Unable to retrieve pods|DeadlineExceeded|context canceled|failed to sync configmap cache|PLEG|runtime service failed"
