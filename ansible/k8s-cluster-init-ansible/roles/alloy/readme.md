@@ -94,3 +94,99 @@ kubectl -n tracing logs -l app.kubernetes.io/instance=tempo --tail=200
 ```
 
 Alloy 同时保留原来的 **日志采集到 Loki**，并新增 **Trace 转发到 Tempo**。
+
+
+# Grafana / Loki 查询
+
+查全部 host journal 异常日志：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal"}
+```
+
+查某个节点：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal", node="worker8"}
+```
+
+查 containerd：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal", unit="containerd.service"}
+```
+
+查 kubelet：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal", unit="kubelet.service"}
+```
+
+查 OOM：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal", unit="containerd.service"} |= "TaskOOM"
+```
+
+查 137：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal", unit="containerd.service"} |= "exit_status:137"
+```
+
+查 PLEG：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal", unit="kubelet.service"} |= "GenericPLEG"
+```
+
+查 kubelet runtime 超时：
+
+```logql
+{cluster="prod-hz-01", job="systemd-journal", unit="kubelet.service"} |= "ContainerStatus from runtime service failed"
+```
+
+---
+
+# 后续飞书告警 LogQL
+
+containerd OOM：
+
+```logql
+count_over_time({cluster="prod-hz-01", job="systemd-journal", unit="containerd.service"} |= "TaskOOM" [5m]) > 0
+```
+
+exit 137：
+
+```logql
+count_over_time({cluster="prod-hz-01", job="systemd-journal", unit="containerd.service"} |= "exit_status:137" [5m]) > 0
+```
+
+kubelet PLEG 异常：
+
+```logql
+count_over_time({cluster="prod-hz-01", job="systemd-journal", unit="kubelet.service"} |= "GenericPLEG: Unable to retrieve pods" [5m]) > 0
+```
+
+kubelet runtime service 异常：
+
+```logql
+count_over_time({cluster="prod-hz-01", job="systemd-journal", unit="kubelet.service"} |= "ContainerStatus from runtime service failed" [5m]) > 0
+```
+
+---
+
+这版不会把 kubelet/containerd 全量日志推到 Loki，只会保留类似：
+
+```text
+TaskOOM
+exit_status:137
+GenericPLEG
+ContainerStatus from runtime service failed
+ListPodSandbox
+DeadlineExceeded
+context canceled
+shim disconnected
+```
+
+这类异常关键日志，日志量会小很多。
