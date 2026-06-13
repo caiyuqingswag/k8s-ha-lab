@@ -17,6 +17,15 @@ data:
     default-time-zone = '+08:00'
 
     max_connections = 1000
+    max_allowed_packet = 64M
+    table_open_cache = 2048
+    thread_cache_size = 128
+
+    innodb_buffer_pool_size = 1G
+    innodb_log_file_size = 256M
+
+    sql_mode = STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+
 
     innodb_file_per_table = 1
     innodb_flush_log_at_trx_commit = 1

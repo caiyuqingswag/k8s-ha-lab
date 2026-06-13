@@ -39,11 +39,9 @@ spec:
             capabilities:
               drop:
                 - ALL
-            # ✅ baseline 下可选：确认没权限问题再打开
             runAsNonRoot: true
             runAsUser: 999
             runAsGroup: 999
-            # ✅ 也可尝试（若报写入问题，再加 /tmp emptyDir；我下面已加了）
             readOnlyRootFilesystem: true
           ports:
             - name: mysql
@@ -71,10 +69,8 @@ spec:
             - name: mysql-config
               mountPath: /etc/mysql/conf.d/my.cnf
               subPath: my.cnf
-            # ✅ MySQL 常用临时目录（也为以后开 readOnlyRootFilesystem 做准备）
             - name: tmp
               mountPath: /tmp
-          # ✅ 强烈建议加健康检查（避免假活）
           startupProbe:
             exec:
               command: ["bash", "-lc", "mysqladmin ping -uroot -p\"$MYSQL_ROOT_PASSWORD\" --silent"]

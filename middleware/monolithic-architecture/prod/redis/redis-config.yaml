@@ -11,6 +11,9 @@ data:
 
     appendonly yes
     appendfsync everysec
+    aof-use-rdb-preamble yes
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
     no-appendfsync-on-rewrite yes
 
     save ""
@@ -19,6 +22,8 @@ data:
     maxmemory-policy allkeys-lru
 
     tcp-keepalive 300
+    tcp-backlog 511
+    databases 16
     timeout 0
 
     slowlog-log-slower-than 10000

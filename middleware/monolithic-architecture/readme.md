@@ -1,88 +1,112 @@
-# 存储方案说明（基于 NFS）
+# 单体架构中间件部署说明
 
-本 README 用于说明当前系统采用 **NFS（Network File System）** 作为共享存储方案的原因与基本架构设计。该方案适用于**单体架构或小规模集群环境**，强调 **简单、易部署、低成本、易维护**。
+该目录保存单体架构场景下的基础中间件 Kubernetes 清单，按环境分为 `dev`、`sit`、`prod` 三套。
 
----
+当前组件包括：
 
-## 一、方案背景
+- MySQL
+- Redis
+- MongoDB
+- RabbitMQ
+- MinIO
+- InfluxDB
 
-当前系统整体规模较小，所有中间件与业务数据总量不超过 **600GB**，主要组件包括：
+## 目录结构
 
-* MySQL
-* Redis
-* MinIO
-* InfluxDB
-* RabbitMQ
+```text
+middleware/monolithic-architecture/
+  dev/       # 开发环境，namespace: dev-basic
+  sit/       # 集成测试环境，namespace: sit-basic
+  prod/      # 生产环境，namespace: prod-basic
+```
 
-在该规模下，我们对存储系统的核心诉求是：
+每个环境目录下提供 `namespace.yaml`，组件目录内通常包含：
 
-* 简单可靠
-* 成本可控
-* 易于部署
-* 易于维护
-* 支持多节点访问
+- `*-secret.yaml`: 账号密码。
+- `*-config.yaml`: 组件配置，部分组件没有该文件。
+- `*-pv.yaml`: 静态 NFS PV。
+- `*-pvc.yaml`: PVC。
+- `*-headless.yaml`: StatefulSet 使用的 Headless Service。
+- `*-statefulSet.yaml`: 单副本 StatefulSet。
+- `*-nodeport.yaml`: 对外调试或业务访问用的 NodePort Service。
 
-因此，我们选择使用 **NFS 作为共享存储方案**。
+## 部署顺序
 
----
+首次部署某个环境时，先创建 namespace：
 
-## 二、为什么选择 NFS
+```bash
+kubectl apply -f middleware/monolithic-architecture/dev/namespace.yaml
+kubectl apply -f middleware/monolithic-architecture/sit/namespace.yaml
+kubectl apply -f middleware/monolithic-architecture/prod/namespace.yaml
+```
 
-NFS 是一种成熟、稳定、广泛使用的网络文件系统，适合中小规模环境。
+再按组件部署：
 
-### NFS 的主要特点：
+```bash
+kubectl apply -f middleware/monolithic-architecture/<env>/<component>/
+```
 
-* 共享存储：多台服务器可同时访问同一份数据
-* 部署简单：无需复杂的集群组件
-* 成本低：无需专用存储设备
-* 运维友好：易于监控与维护
-* 兼容性强：几乎所有 Linux 系统原生支持
+建议生产环境先执行差异检查：
 
-对于当前业务规模，NFS 可以满足稳定性和可用性的基本需求。
+```bash
+kubectl diff -f middleware/monolithic-architecture/prod/<component>/
+kubectl apply -f middleware/monolithic-architecture/prod/<component>/
+```
 
----
+其中 MongoDB 在 `dev` 和 `prod` 目录下多一层 `mongodb/` 子目录，部署路径分别为：
 
-## 三、系统中各组件的存储方式
+```bash
+kubectl apply -f middleware/monolithic-architecture/dev/mongodb/mongodb/
+kubectl apply -f middleware/monolithic-architecture/prod/mongodb/mongodb/
+```
 
-| 组件          | 存储方式     |
-| ----------- | -------- |
-| MySQL       | NFS 挂载目录 |
-| Redis (AOF) | NFS 挂载目录 |
-| InfluxDB    | NFS 挂载目录 |
-| RabbitMQ    | NFS 挂载目录 |
-| MinIO       | NFS 挂载目录 |
+## 存储方案
 
----
+当前清单使用静态 NFS PV，NFS 服务器地址为 `172.16.15.76`，数据目录按环境和组件拆分：
 
-## 四、部署模式说明
+```text
+/data/jiyan/dev/<component>
+/data/jiyan/sit/<component>
+/data/jiyan/prod/<component>
+```
 
-在 Kubernetes 或传统部署环境中：
+该方案适合实验环境、单体应用和中小规模数据量场景，优点是简单、成本低、备份路径清晰。它不等同于高可用存储，生产环境需要额外确认 NFS 服务自身的可用性、备份、恢复演练和容量监控。
 
-* NFS 服务器提供统一的共享目录
-* 所有有状态服务挂载该共享目录
-* 数据集中存储，便于管理和备份
+## 配置检查项
 
-该模式具备以下优点：
+部署前建议逐项确认：
 
-* 数据集中管理
-* 迁移简单
-* 备份方便
-* 运维复杂度低
+- namespace 是否已创建。
+- NFS server、目录和权限是否正确。
+- PV/PVC 的 `storageClassName`、容量和访问模式是否符合实际环境。
+- Secret 中的密码是否已替换，当前清单使用 `stringData` 明文保存，生产环境建议改为外部 Secret 管理或 SealedSecret。
+- NodePort 是否和集群内已有端口冲突，生产环境是否真的需要直接暴露。
+- NodePort/LoadBalancer 当前显式使用 `externalTrafficPolicy: Cluster` 和 `sessionAffinity: None`，适合单副本服务在任意节点入口访问；如果需要保留客户端源 IP，可评估改为 `Local`，但要注意只有运行 Pod 的节点可转发。
+- 所有组件当前都是单副本 StatefulSet，不具备组件级高可用能力。
+- 镜像版本是否符合当前环境的兼容性和漏洞扫描要求。
+- 资源 request/limit 是否符合容量规划。
 
----
+## 配置优化说明
 
-## 五、适用范围
+- MySQL 配置补充了 `max_allowed_packet`、`table_open_cache`、`thread_cache_size`、`innodb_buffer_pool_size`、`innodb_log_file_size` 和严格 SQL 模式，适配当前 4Gi 内存限制下的单体业务场景。
+- Redis 配置补充了 AOF preamble、AOF 自动重写阈值、`tcp-backlog` 和默认数据库数量，并保留 `appendfsync everysec` 作为性能和可靠性的折中。
+- InfluxDB 配置补充了 HTTP 请求体和返回行数限制，避免单次请求过大拖垮单副本实例。
 
-NFS 方案适用于以下场景：
+## 验证命令
 
-| 条件        | 是否适合 |
-| --------- | ---- |
-| 数据量 < 1TB | ✅    |
-| 单体应用      | ✅    |
-| 小规模集群     | ✅    |
-| 对一致性要求不高  | ✅    |
-| 对自动容灾要求不高 | ⚠    |
-| 核心金融级系统   | ❌    |
+```bash
+kubectl get ns dev-basic sit-basic prod-basic
+kubectl get pv,pvc -A | grep jiyan
+kubectl get sts,pod,svc -n <namespace>
+kubectl describe pod -n <namespace> <pod-name>
+```
 
----
+## 适用边界
 
+| 场景 | 适合度 |
+| --- | --- |
+| 本地实验环境 | 适合 |
+| 开发/联调环境 | 适合 |
+| SIT 集成测试 | 基本适合 |
+| 小规模单体生产 | 需补齐备份、监控和访问控制 |
+| 强一致、高并发、自动容灾场景 | 不建议直接使用本目录清单 |

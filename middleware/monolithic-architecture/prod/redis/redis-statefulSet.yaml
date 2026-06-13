@@ -30,11 +30,9 @@ spec:
             capabilities:
               drop:
                 - ALL
-            # ✅ baseline 下可选：确认数据卷权限 OK 后再打开
             runAsNonRoot: true
             runAsUser: 999
             runAsGroup: 999
-            # ✅ 也可尝试（若报写入问题，再加 /tmp emptyDir；我下面已加了）
             readOnlyRootFilesystem: true
           command: ["sh", "-c"]
           args:
@@ -66,19 +64,34 @@ spec:
               subPath: redis.conf
             - name: tmp
               mountPath: /tmp
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep PONG
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
           readinessProbe:
-            tcpSocket:
-              port: 6379
+            exec:
+              command:
+                - sh
+                - -c
+                - REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep PONG
             initialDelaySeconds: 5
             periodSeconds: 5
-            timeoutSeconds: 2
+            timeoutSeconds: 3
             failureThreshold: 6
           livenessProbe:
-            tcpSocket:
-              port: 6379
+            exec:
+              command:
+                - sh
+                - -c
+                - REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep PONG
             initialDelaySeconds: 15
             periodSeconds: 10
-            timeoutSeconds: 2
+            timeoutSeconds: 3
             failureThreshold: 6
       volumes:
         - name: redis-data

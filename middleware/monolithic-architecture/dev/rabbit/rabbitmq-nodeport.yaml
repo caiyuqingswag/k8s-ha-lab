@@ -7,6 +7,8 @@ metadata:
     app: rabbitmq
 spec:
   type: NodePort
+  externalTrafficPolicy: Cluster
+  sessionAffinity: None
   selector:
     app: rabbitmq
   ports:

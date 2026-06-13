@@ -30,11 +30,9 @@ spec:
             capabilities:
               drop:
                 - ALL
-            # ✅ baseline 下可选：确认数据卷权限 OK 后再打开
             runAsNonRoot: true
             runAsUser: 999
             runAsGroup: 999
-            # ✅ 也可尝试（如果报 /tmp 写入问题，再加 /tmp emptyDir）
             readOnlyRootFilesystem: true
           args:
             - "--bind_ip_all"
@@ -69,6 +67,15 @@ spec:
               mountPath: /data/db
             - name: tmp
               mountPath: /tmp
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mongo --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand(\"ping\")" || exit 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             exec:
               command:

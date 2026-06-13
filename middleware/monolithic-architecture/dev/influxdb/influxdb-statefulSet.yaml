@@ -30,11 +30,9 @@ spec:
             capabilities:
               drop:
                 - ALL
-            # ✅ baseline 下“可选加固”：如果确认镜像能非 root 跑再打开
             runAsNonRoot: true
             runAsUser: 1000
             runAsGroup: 1000
-            # ✅ 也可尝试开启（若报 /tmp 或其他写入问题，再加 /tmp emptyDir）
             readOnlyRootFilesystem: true
           ports:
             - name: http
@@ -75,6 +73,13 @@ spec:
             - name: influxdb-config
               mountPath: /etc/influxdb/influxdb.conf
               subPath: influxdb.conf
+          startupProbe:
+            httpGet:
+              path: /ping
+              port: 8086
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /ping

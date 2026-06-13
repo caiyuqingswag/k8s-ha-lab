@@ -28,7 +28,6 @@ data:
       log-queries-after = "0s"
 
 
-    #CREATE RETENTION POLICY "30d" ON "metrics" DURATION 30d REPLICATION 1 DEFAULT
     [retention]
       enabled = true
       check-interval = "24h"
@@ -37,6 +36,8 @@ data:
       enabled = true
       bind-address = ":8086"
       auth-enabled = true
+      max-body-size = 25000000
+      max-row-limit = 10000
       log-enabled = false  #关闭探针刷日志
       write-tracing = false
       pprof-enabled = false
