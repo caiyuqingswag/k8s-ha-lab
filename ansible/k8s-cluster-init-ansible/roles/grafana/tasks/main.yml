@@ -11,6 +11,15 @@
       - groups['masters'] | length > 0
     fail_msg: "masters group is required."
 
+- name: Ensure Grafana admin password is customized
+  ansible.builtin.assert:
+    that:
+      - grafana_admin_password is defined
+      - grafana_admin_password | string | length >= 12
+      - grafana_admin_password != 'CHANGE_ME_USE_ANSIBLE_VAULT'
+    fail_msg: "grafana_admin_password must be set to a strong value, preferably from Ansible Vault."
+  no_log: true
+
 - name: Ensure Grafana working directory exists
   ansible.builtin.file:
     path: "{{ grafana_work_dir }}"
@@ -30,6 +39,7 @@
     src: grafana-values.yaml.j2
     dest: "{{ grafana_work_dir }}/values.yaml"
     mode: "0600"
+  no_log: true
   when: inventory_hostname == groups['masters'][0]
 
 - name: Check kube-apiserver is reachable

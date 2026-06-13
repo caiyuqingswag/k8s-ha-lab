@@ -29,6 +29,7 @@
       ansible.builtin.command: kubeadm token create --print-join-command
       register: _join_cmd
       changed_when: false
+      no_log: true
       delegate_to: "{{ groups['masters'][0] }}"
       run_once: true
 
@@ -36,6 +37,7 @@
       ansible.builtin.command: kubeadm init phase upload-certs --upload-certs
       register: _cert_out
       changed_when: false
+      no_log: true
       delegate_to: "{{ groups['masters'][0] }}"
       run_once: true
 
@@ -44,6 +46,7 @@
         name: k8s_cluster
         join_command: "{{ _join_cmd.stdout | mandatory }}"
         certificate_key: "{{ (_cert_out.stdout_lines | last) | mandatory }}"
+      no_log: true
       run_once: true
   when: "'k8s_cluster' not in hostvars"
   tags:
@@ -59,6 +62,7 @@
     --cri-socket {{ cri_socket }}
     --node-name {{ inventory_hostname }}
   register: join_master_result
+  no_log: true
   when:
     - not kubeletconf.stat.exists
     - inventory_hostname != groups['masters'][0]
@@ -67,10 +71,10 @@
 
 - name: Show control-plane join output
   ansible.builtin.debug:
-    msg: "{{ join_master_result.stdout_lines | default([]) }}"
+    msg: "Control-plane node {{ inventory_hostname }} joined successfully."
   when:
     - join_master_result is defined
-    - join_master_result.stdout_lines is defined
+    - join_master_result is changed
   tags:
     - join_masters
 

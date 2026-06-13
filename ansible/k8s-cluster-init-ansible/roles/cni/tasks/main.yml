@@ -41,25 +41,33 @@
     dest: "{{ cilium_work_dir }}/values.yaml"
     mode: "0644"
 
+- name: Build Cilium Helm command
+  ansible.builtin.set_fact:
+    cilium_helm_argv: >-
+      {{
+        [
+          'helm',
+          'upgrade',
+          '--install',
+          'cilium',
+          cilium_work_dir ~ '/' ~ cilium_chart_archive,
+          '--namespace',
+          cilium_namespace,
+          '--create-namespace',
+          '-f',
+          cilium_work_dir ~ '/values.yaml',
+          '--reset-values',
+          '--kubeconfig',
+          '/etc/kubernetes/admin.conf',
+          '--timeout',
+          cilium_helm_timeout
+        ]
+        + (['--wait'] if cilium_helm_wait | bool else [])
+      }}
+
 - name: Install or upgrade Cilium via Helm
   ansible.builtin.command:
-    argv:
-      - helm
-      - upgrade
-      - --install
-      - cilium
-      - "{{ cilium_work_dir }}/{{ cilium_chart_archive }}"
-      - --namespace
-      - "{{ cilium_namespace }}"
-      - --create-namespace
-      - -f
-      - "{{ cilium_work_dir }}/values.yaml"
-      - --reset-values
-      - --kubeconfig
-      - /etc/kubernetes/admin.conf
-      - --timeout
-      - "{{ cilium_helm_timeout }}"
-      - "{{ '--wait' if cilium_helm_wait else '' }}"
+    argv: "{{ cilium_helm_argv }}"
   register: cilium_helm_result
   changed_when: "'has been upgraded' in cilium_helm_result.stdout or 'has been installed' in cilium_helm_result.stdout"
 

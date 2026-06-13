@@ -12,6 +12,15 @@
       - groups['masters'] | length > 0
     fail_msg: "masters group is required."
 
+- name: Ensure APISIX admin key is customized
+  ansible.builtin.assert:
+    that:
+      - apisix_admin_key is defined
+      - apisix_admin_key | string | length >= 16
+      - apisix_admin_key not in ['CHANGE_ME_USE_ANSIBLE_VAULT', '123456']
+    fail_msg: "apisix_admin_key must be set to a strong value, preferably from Ansible Vault."
+  no_log: true
+
 - name: Ensure APISIX working directory exists
   ansible.builtin.file:
     path: "{{ apisix_work_dir }}"
@@ -31,6 +40,7 @@
     src: apisix-values.yaml.j2
     dest: "{{ apisix_work_dir }}/values.yaml"
     mode: "0600"
+  no_log: true
   when: inventory_hostname == groups['masters'][0]
 
 - name: Check kube-apiserver is reachable

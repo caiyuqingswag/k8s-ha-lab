@@ -12,6 +12,24 @@
       - groups['masters'] | length > 0
     fail_msg: "masters group is required."
 
+- name: Ensure JumpServer secrets are customized
+  ansible.builtin.assert:
+    that:
+      - jumpserver_postgresql_password is defined
+      - jumpserver_redis_password is defined
+      - jumpserver_core_secret_key is defined
+      - jumpserver_core_bootstrap_token is defined
+      - jumpserver_postgresql_password | string | length >= 12
+      - jumpserver_redis_password | string | length >= 12
+      - jumpserver_core_secret_key | string | length >= 32
+      - jumpserver_core_bootstrap_token | string | length >= 16
+      - jumpserver_postgresql_password != 'ChangeMe_Postgres_Password'
+      - jumpserver_redis_password != 'ChangeMe_Redis_Password'
+      - jumpserver_core_secret_key != 'ChangeMeJumpServerSecretKey1234567890ChangeMeJumpServer'
+      - jumpserver_core_bootstrap_token != 'ChangeMeBootstrapToken2026'
+    fail_msg: "JumpServer passwords and tokens must be customized, preferably from Ansible Vault."
+  no_log: true
+
 - name: Ensure JumpServer working directory exists
   ansible.builtin.file:
     path: "{{ jumpserver_work_dir }}"
@@ -31,6 +49,7 @@
     src: jumpserver-deps.yaml.j2
     dest: "{{ jumpserver_work_dir }}/jumpserver-deps.yaml"
     mode: "0600"
+  no_log: true
   when: inventory_hostname == groups['masters'][0]
 
 - name: Render JumpServer values.yaml
@@ -38,6 +57,7 @@
     src: jumpserver-values.yaml.j2
     dest: "{{ jumpserver_work_dir }}/values.yaml"
     mode: "0600"
+  no_log: true
   when: inventory_hostname == groups['masters'][0]
 
 - name: Check kube-apiserver is reachable

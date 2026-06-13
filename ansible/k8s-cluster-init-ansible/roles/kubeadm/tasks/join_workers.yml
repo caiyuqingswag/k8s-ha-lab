@@ -29,6 +29,7 @@
       ansible.builtin.command: kubeadm token create --print-join-command
       register: _join_cmd
       changed_when: false
+      no_log: true
       delegate_to: "{{ groups['masters'][0] }}"
       run_once: true
 
@@ -36,6 +37,7 @@
       ansible.builtin.add_host:
         name: k8s_cluster
         join_command: "{{ _join_cmd.stdout | mandatory }}"
+      no_log: true
       run_once: true
   when: "'k8s_cluster' not in hostvars or hostvars['k8s_cluster'].join_command is not defined"
   tags:
@@ -47,15 +49,16 @@
     --cri-socket {{ cri_socket }}
     --node-name {{ inventory_hostname }}
   register: join_worker_result
+  no_log: true
   when: not kubeletconf.stat.exists
   tags:
     - join_workers
 
 - name: Show worker join output
   ansible.builtin.debug:
-    msg: "{{ join_worker_result.stdout_lines | default([]) }}"
+    msg: "Worker node {{ inventory_hostname }} joined successfully."
   when:
     - join_worker_result is defined
-    - join_worker_result.stdout_lines is defined
+    - join_worker_result is changed
   tags:
     - join_workers
