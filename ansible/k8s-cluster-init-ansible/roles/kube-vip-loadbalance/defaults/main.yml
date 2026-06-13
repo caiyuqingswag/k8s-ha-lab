@@ -1,5 +1,7 @@
 # kube-vip 基本配置
 kubevip_namespace: kube-system
+kubevip_lb_work_dir: "/etc/kubernetes/kube-vip-loadbalance"
+kubevip_kubeconfig: "/etc/kubernetes/admin.conf"
 
 # LoadBalancer IP 池
 kubevip_lb_range: "172.16.15.70-172.16.15.75"

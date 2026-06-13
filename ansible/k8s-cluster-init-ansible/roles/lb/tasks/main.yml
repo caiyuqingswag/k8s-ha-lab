@@ -1,10 +1,10 @@
 - name: Install epel-release
-  dnf:
+  ansible.builtin.dnf:
     name: epel-release
     state: present
 
 - name: Install nginx, keepalived, stream module
-  dnf:
+  ansible.builtin.dnf:
     name:
       - nginx
       - keepalived
@@ -12,35 +12,35 @@
     state: present
 
 - name: Deploy nginx.conf
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
     mode: "0644"
 
 - name: Deploy keepalived.conf
-  template:
+  ansible.builtin.template:
     src: keepalived.conf.j2
     dest: /etc/keepalived/keepalived.conf
     mode: "0644"
 
 - name: Deploy check_nginx.sh
-  copy:
+  ansible.builtin.copy:
     src: check_nginx.sh
     dest: /etc/keepalived/check_nginx.sh
     mode: "0755"
 
 - name: Reload systemd
-  command: systemctl daemon-reload
+  ansible.builtin.command: systemctl daemon-reload
   changed_when: false
 
 - name: Enable and start nginx
-  systemd:
+  ansible.builtin.systemd:
     name: nginx
     enabled: true
     state: restarted
 
 - name: Enable and start keepalived
-  systemd:
+  ansible.builtin.systemd:
     name: keepalived
     enabled: true
     state: restarted

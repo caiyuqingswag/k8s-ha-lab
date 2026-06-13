@@ -1,42 +1,94 @@
-- name: Ensure kube-system namespace exists
-  command: kubectl get ns {{ kubevip_namespace }}
-  register: ns_check
-  changed_when: false
-  failed_when: false
+---
+# =========================
+# kube-vip cloud provider and Service LoadBalancer
+# Run from first master only
+# =========================
+
+- name: Ensure this role runs with cluster access
+  ansible.builtin.assert:
+    that:
+      - groups['masters'] is defined
+      - groups['masters'] | length > 0
+    fail_msg: "masters group is required."
+
+- name: Ensure kube-vip LoadBalancer work dir exists
+  ansible.builtin.file:
+    path: "{{ kubevip_lb_work_dir }}"
+    state: directory
+    mode: "0755"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Create kube-system namespace if missing
-  command: kubectl create ns {{ kubevip_namespace }}
-  when:
-    - inventory_hostname == groups['masters'][0]
-    - ns_check.rc != 0
-
-- name: Apply kube-vip cloud controller ConfigMap
-  template:
+- name: Render kube-vip cloud controller ConfigMap
+  ansible.builtin.template:
     src: kube-vip-cloud-controller-configmap.yaml.j2
-    dest: /tmp/kube-vip-cloud-controller-configmap.yaml
+    dest: "{{ kubevip_lb_work_dir }}/kube-vip-cloud-controller-configmap.yaml"
+    mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Apply kube-vip cloud controller ConfigMap
-  command: kubectl apply -f /tmp/kube-vip-cloud-controller-configmap.yaml
+- name: Render kube-vip cloud controller manifest
+  ansible.builtin.template:
+    src: kube-vip-cloud-controller.yaml.j2
+    dest: "{{ kubevip_lb_work_dir }}/kube-vip-cloud-controller.yaml"
+    mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Apply kube-vip cloud controller RBAC & Deployment
-  command: kubectl apply -f {{ item }}
-  loop:
-    - "{{ role_path }}/files/kube-vip-cloud-controller.yaml"
+- name: Copy kube-vip LoadBalancer RBAC manifest
+  ansible.builtin.copy:
+    src: kube-vip-lb-rbac.yaml
+    dest: "{{ kubevip_lb_work_dir }}/kube-vip-lb-rbac.yaml"
+    mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Apply kube-vip LB RBAC
-  command: kubectl apply -f {{ role_path }}/files/kube-vip-lb-rbac.yaml
-  when: inventory_hostname == groups['masters'][0]
-
-- name: Apply kube-vip LB DaemonSet
-  template:
+- name: Render kube-vip LoadBalancer DaemonSet
+  ansible.builtin.template:
     src: kube-vip-lb.yaml.j2
-    dest: /tmp/kube-vip-lb.yaml
+    dest: "{{ kubevip_lb_work_dir }}/kube-vip-lb.yaml"
+    mode: "0644"
   when: inventory_hostname == groups['masters'][0]
 
-- name: Deploy kube-vip LB DaemonSet
-  command: kubectl apply -f /tmp/kube-vip-lb.yaml
+- name: Apply kube-vip LoadBalancer manifests
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig={{ kubevip_kubeconfig }}
+      - apply
+      - -f
+      - "{{ item }}"
+  loop:
+    - "{{ kubevip_lb_work_dir }}/kube-vip-cloud-controller-configmap.yaml"
+    - "{{ kubevip_lb_work_dir }}/kube-vip-cloud-controller.yaml"
+    - "{{ kubevip_lb_work_dir }}/kube-vip-lb-rbac.yaml"
+    - "{{ kubevip_lb_work_dir }}/kube-vip-lb.yaml"
+  register: kubevip_lb_apply
+  changed_when: >
+    'created' in (kubevip_lb_apply.stdout | default('')) or
+    'configured' in (kubevip_lb_apply.stdout | default(''))
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for kube-vip cloud provider deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig={{ kubevip_kubeconfig }}
+      - -n
+      - "{{ kubevip_namespace }}"
+      - rollout
+      - status
+      - deploy/kube-vip-cloud-provider
+      - --timeout=5m
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Wait for kube-vip LoadBalancer DaemonSet
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig={{ kubevip_kubeconfig }}
+      - -n
+      - "{{ kubevip_namespace }}"
+      - rollout
+      - status
+      - ds/kube-vip-ds
+      - --timeout=5m
+  changed_when: false
   when: inventory_hostname == groups['masters'][0]
