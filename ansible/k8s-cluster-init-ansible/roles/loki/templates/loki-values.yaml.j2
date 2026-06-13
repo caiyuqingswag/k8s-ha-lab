@@ -63,8 +63,11 @@ write:
 gateway:
   enabled: true
 
+lokiCanary:
+  enabled: {{ loki_canary_enabled | bool | lower }}
+
 test:
-  enabled: false
+  enabled: {{ loki_test_enabled | bool | lower }}
 
 monitoring:
   dashboards:

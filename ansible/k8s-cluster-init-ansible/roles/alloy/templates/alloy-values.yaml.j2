@@ -2,9 +2,36 @@
 # Grafana Alloy Helm values
 # Logs -> Loki
 # Traces -> Tempo
+# Host Journal -> Loki
 # ===============================
 
 alloy:
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+
+  resources:
+    requests:
+      cpu: "{{ alloy_cpu_request }}"
+      memory: "{{ alloy_memory_request }}"
+    limits:
+      cpu: "{{ alloy_cpu_limit }}"
+      memory: "{{ alloy_memory_limit }}"
+
+{% if alloy_host_journal_enabled | bool %}
+  mounts:
+    extra:
+      - name: run-log-journal
+        mountPath: /run/log/journal
+        readOnly: true
+      - name: var-log-journal
+        mountPath: /var/log/journal
+        readOnly: true
+      - name: machine-id
+        mountPath: /etc/machine-id
+        readOnly: true
+{% endif %}
+
   extraEnv:
     - name: NODE_NAME
       valueFrom:
@@ -171,6 +198,67 @@ alloy:
         forward_to = [loki.write.loki.receiver]
       }
 
+{% if alloy_host_journal_enabled | bool %}
+      // ===============================
+      // Host Journal Logs -> Loki
+      // kubelet / containerd
+      // 只保留关键异常日志，避免全量推送
+      // ===============================
+
+      loki.source.journal "containerd" {
+        path       = "{{ alloy_host_journal_path }}"
+        max_age    = "{{ alloy_host_journal_max_age }}"
+        matches    = "_SYSTEMD_UNIT=containerd.service"
+        forward_to = [loki.process.host_journal.receiver]
+
+        labels = {
+          job     = "systemd-journal",
+          unit    = "containerd.service",
+          node    = env("NODE_NAME"),
+          cluster = "{{ alloy_cluster_name }}",
+        }
+      }
+
+      loki.source.journal "kubelet" {
+        path       = "{{ alloy_host_journal_path }}"
+        max_age    = "{{ alloy_host_journal_max_age }}"
+        matches    = "_SYSTEMD_UNIT=kubelet.service"
+        forward_to = [loki.process.host_journal.receiver]
+
+        labels = {
+          job     = "systemd-journal",
+          unit    = "kubelet.service",
+          node    = env("NODE_NAME"),
+          cluster = "{{ alloy_cluster_name }}",
+        }
+      }
+
+      loki.process "host_journal" {
+        // containerd 只保留 OOM / 137 / shim / 超时等关键日志
+        stage.match {
+          selector = "{unit=\"containerd.service\"} !~ \"{{ alloy_containerd_keep_regex }}\""
+          action   = "drop"
+        }
+
+        // kubelet 只保留 PLEG / runtime service / DeadlineExceeded 等关键日志
+        stage.match {
+          selector = "{unit=\"kubelet.service\"} !~ \"{{ alloy_kubelet_keep_regex }}\""
+          action   = "drop"
+        }
+
+        stage.label_keep {
+          values = [
+            "cluster",
+            "job",
+            "unit",
+            "node",
+          ]
+        }
+
+        forward_to = [loki.write.loki.receiver]
+      }
+
+{% endif %}
       loki.write "loki" {
         endpoint {
           url = "{{ alloy_loki_push_url }}"
@@ -235,16 +323,25 @@ alloy:
 controller:
   type: daemonset
 
+{% if alloy_host_journal_enabled | bool %}
+  volumes:
+    extra:
+      - name: run-log-journal
+        hostPath:
+          path: /run/log/journal
+          type: DirectoryOrCreate
+      - name: var-log-journal
+        hostPath:
+          path: /var/log/journal
+          type: DirectoryOrCreate
+      - name: machine-id
+        hostPath:
+          path: /etc/machine-id
+          type: File
+{% endif %}
+
 serviceAccount:
   create: true
 
 rbac:
   create: true
-
-resources:
-  requests:
-    cpu: "{{ alloy_cpu_request }}"
-    memory: "{{ alloy_memory_request }}"
-  limits:
-    cpu: "{{ alloy_cpu_limit }}"
-    memory: "{{ alloy_memory_limit }}"

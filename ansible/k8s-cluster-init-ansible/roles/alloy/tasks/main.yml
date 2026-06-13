@@ -3,6 +3,7 @@
 # Install Grafana Alloy by offline Helm chart
 # Logs -> Loki
 # Traces -> Tempo
+# Host Journal -> Loki
 # Run Helm operations from first master only
 # =========================
 
@@ -83,6 +84,40 @@
   when:
     - inventory_hostname == groups['masters'][0]
     - alloy_traces_enabled | bool
+
+- name: Check rendered Alloy journal config
+  ansible.builtin.command:
+    argv:
+      - bash
+      - -lc
+      - "grep -nE 'loki.source.journal|host_journal|run-log-journal|var-log-journal|machine-id|TaskOOM|GenericPLEG|ContainerStatus' {{ alloy_work_dir }}/values.yaml || true"
+  register: alloy_journal_config_check
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Print rendered Alloy journal config
+  ansible.builtin.debug:
+    msg: "{{ alloy_journal_config_check.stdout_lines }}"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - alloy_host_journal_enabled | bool
+
+- name: Render Helm template for Alloy check
+  ansible.builtin.command:
+    argv:
+      - helm
+      - template
+      - alloy
+      - "{{ alloy_work_dir }}/{{ alloy_chart_archive }}"
+      - --namespace
+      - "{{ alloy_namespace }}"
+      - -f
+      - "{{ alloy_work_dir }}/values.yaml"
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+  register: alloy_helm_template_check
+  changed_when: false
+  when: inventory_hostname == groups['masters'][0]
 
 - name: Install or upgrade Alloy via Helm
   ansible.builtin.command:
@@ -191,4 +226,23 @@
 - name: Print Alloy rendered trace config
   ansible.builtin.debug:
     msg: "{{ alloy_trace_config_check.stdout_lines }}"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - alloy_traces_enabled | bool
+
+- name: Show Alloy rendered host journal config
+  ansible.builtin.command:
+    argv:
+      - bash
+      - -lc
+      - "grep -n 'Host Journal Logs' -A80 {{ alloy_work_dir }}/values.yaml || true"
+  register: alloy_host_journal_config_check
+  changed_when: false
   when: inventory_hostname == groups['masters'][0]
+
+- name: Print Alloy rendered host journal config
+  ansible.builtin.debug:
+    msg: "{{ alloy_host_journal_config_check.stdout_lines }}"
+  when:
+    - inventory_hostname == groups['masters'][0]
+    - alloy_host_journal_enabled | bool

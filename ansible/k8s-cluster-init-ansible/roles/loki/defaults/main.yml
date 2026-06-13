@@ -19,6 +19,11 @@ loki_single_binary_replicas: 1
 loki_retention_enabled: true
 loki_retention_period: "168h"   # 7 天
 
+# loki-canary 会持续写测试日志，生产不需要可关闭
+loki_canary_enabled: false
+loki_test_enabled: false
+
+
 # 资源
 loki_cpu_request: "200m"
 loki_memory_request: "512Mi"
@@ -37,3 +42,4 @@ loki_grafana_datasource_url: "http://loki-gateway.logging.svc.cluster.local"
 
 # Helm
 loki_helm_timeout: "10m"
+

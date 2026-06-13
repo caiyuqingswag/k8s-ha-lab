@@ -3,6 +3,7 @@
 # Grafana Alloy
 # Logs -> Loki
 # Traces -> Tempo
+# Host Journal -> Loki
 # =========================
 
 alloy_namespace: "logging"
@@ -14,13 +15,13 @@ alloy_work_dir: "/etc/kubernetes/alloy"
 # Logs -> Loki
 # =========================
 
-# Loki 地址
+# Loki push 地址
 alloy_loki_push_url: "http://loki-gateway.logging.svc.cluster.local/loki/api/v1/push"
 
 # 集群标签
 alloy_cluster_name: "prod-hz-01"
 
-# 采集哪些 namespace 的日志
+# 采集哪些 namespace 的业务 Pod 日志
 alloy_log_namespaces:
   - prod-itex-components
   - prod-itex-servers
@@ -29,8 +30,34 @@ alloy_log_namespaces:
   - stable-itex-components
   - stable-itex-servers
 
-# DaemonSet 模式建议 true，只采集当前节点上的 Pod 日志
+# DaemonSet 模式下，只采当前节点上的 Pod 日志
 alloy_keep_current_node_only: true
+
+# =========================
+# Host Journal Logs
+# kubelet / containerd -> Loki
+# 只采集关键异常日志，避免全量灌 Loki
+# =========================
+
+alloy_host_journal_enabled: true
+
+# Ubuntu 24.04 默认建议采 /var/log/journal
+# /run/log/journal 可能没有持久日志
+# 如果后续发现查不到日志，可改成 /var/log/journal
+alloy_host_journal_path: "/var/log/journal"
+
+# Alloy 启动时最多回看多久，避免首次部署推大量历史日志
+alloy_host_journal_max_age: "10m"
+
+# containerd 临时验证用，排查采集链路是否正常时打开
+# 日志量较大，不建议长期使用
+# alloy_containerd_keep_regex: "TaskOOM|exit_status|OOM|137|shim|context canceled|DeadlineExceeded|RunPodSandbox|StartContainer|StopContainer"
+
+# containerd 生产建议配置，只保留异常/关键日志
+alloy_containerd_keep_regex: "TaskOOM event|exit_status:137|OOM|shim disconnected|cleaning up dead shim|context canceled|DeadlineExceeded|level=error|level=warn|level=warning"
+
+# kubelet 关键日志关键字
+alloy_kubelet_keep_regex: "ContainerStatus from runtime service failed|ListPodSandbox|Failed to list pod sandboxes|GenericPLEG: Unable to retrieve pods|DeadlineExceeded|context canceled|failed to sync configmap cache|PLEG|runtime service failed"
 
 # =========================
 # Traces -> Tempo
@@ -44,7 +71,6 @@ alloy_otlp_grpc_port: 4317
 alloy_otlp_http_port: 4318
 
 # 给业务应用访问的 Service 名称
-# 业务应用以后把 Trace 发到：
 # gRPC: alloy-otlp.logging.svc.cluster.local:4317
 # HTTP: http://alloy-otlp.logging.svc.cluster.local:4318
 alloy_otlp_service_name: "alloy-otlp"
