@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-ssd-redis-0
+  labels:
+    local-pv.k8s-ha-lab/component: redis
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-ssd
+  local:
+    path: /data/local-pv/prod-distributed/redis-0
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - ssd1
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-ssd-redis-1
+  labels:
+    local-pv.k8s-ha-lab/component: redis
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-ssd
+  local:
+    path: /data/local-pv/prod-distributed/redis-1
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - ssd2
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-ssd-redis-2
+  labels:
+    local-pv.k8s-ha-lab/component: redis
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-ssd
+  local:
+    path: /data/local-pv/prod-distributed/redis-2
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - ssd3

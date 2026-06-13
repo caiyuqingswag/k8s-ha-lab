@@ -197,7 +197,10 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-ha
+        storageClassName: local-ssd
+        selector:
+          matchLabels:
+            local-pv.k8s-ha-lab/component: redis
         resources:
           requests:
             storage: 20Gi

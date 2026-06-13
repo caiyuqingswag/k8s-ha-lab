@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vminsert
+  namespace: prod-distributed
+  labels:
+    app.kubernetes.io/name: vminsert
+    app.kubernetes.io/part-of: victoriametrics
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vminsert
+      app.kubernetes.io/part-of: victoriametrics
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vminsert
+        app.kubernetes.io/part-of: victoriametrics
+    spec:
+      terminationGracePeriodSeconds: 30
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: vminsert
+                    app.kubernetes.io/part-of: victoriametrics
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: vminsert
+          image: victoriametrics/vminsert:v1.145.0-cluster
+          imagePullPolicy: IfNotPresent
+          args:
+            - -httpListenAddr=:8480
+            - -replicationFactor=2
+            - -storageNode=vmstorage-0.vmstorage-headless.prod-distributed.svc.cluster.local:8400
+            - -storageNode=vmstorage-1.vmstorage-headless.prod-distributed.svc.cluster.local:8400
+            - -storageNode=vmstorage-2.vmstorage-headless.prod-distributed.svc.cluster.local:8400
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8480
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8480
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8480
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8480
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6

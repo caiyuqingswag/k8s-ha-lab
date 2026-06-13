@@ -1,24 +1,28 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: minio
+  name: vmstorage
   namespace: prod-distributed
+  labels:
+    app.kubernetes.io/name: vmstorage
+    app.kubernetes.io/part-of: victoriametrics
 spec:
-  serviceName: minio-headless
-  replicas: 4
-  podManagementPolicy: Parallel
+  serviceName: vmstorage-headless
+  replicas: 3
   selector:
     matchLabels:
-      app: minio
+      app.kubernetes.io/name: vmstorage
+      app.kubernetes.io/part-of: victoriametrics
   template:
     metadata:
       labels:
-        app: minio
+        app.kubernetes.io/name: vmstorage
+        app.kubernetes.io/part-of: victoriametrics
     spec:
       terminationGracePeriodSeconds: 60
       automountServiceAccountToken: false
       securityContext:
-        fsGroup: 1000
+        fsGroup: 65534
         seccompProfile:
           type: RuntimeDefault
       affinity:
@@ -26,44 +30,35 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchLabels:
-                  app: minio
+                  app.kubernetes.io/name: vmstorage
+                  app.kubernetes.io/part-of: victoriametrics
               topologyKey: kubernetes.io/hostname
       containers:
-        - name: minio
-          image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+        - name: vmstorage
+          image: victoriametrics/vmstorage:v1.145.0-cluster
           imagePullPolicy: IfNotPresent
           args:
-            - server
-            - "http://minio-{0...3}.minio-headless.prod-distributed.svc.cluster.local/data"
-            - "--console-address"
-            - ":9001"
+            - -storageDataPath=/storage
+            - -retentionPeriod=12
+            - -httpListenAddr=:8482
+            - -vminsertAddr=:8400
+            - -vmselectAddr=:8401
           securityContext:
             allowPrivilegeEscalation: false
             privileged: false
             runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+            runAsUser: 65534
+            runAsGroup: 65534
             capabilities:
               drop:
                 - ALL
-          env:
-            - name: MINIO_ROOT_USER
-              valueFrom:
-                secretKeyRef:
-                  name: minio-secret
-                  key: MINIO_ROOT_USER
-            - name: MINIO_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: minio-secret
-                  key: MINIO_ROOT_PASSWORD
-            - name: TZ
-              value: Asia/Shanghai
           ports:
-            - name: api
-              containerPort: 9000
-            - name: console
-              containerPort: 9001
+            - name: http
+              containerPort: 8482
+            - name: vminsert
+              containerPort: 8400
+            - name: vmselect
+              containerPort: 8401
           resources:
             requests:
               cpu: "500m"
@@ -73,25 +68,25 @@ spec:
               memory: "4Gi"
           volumeMounts:
             - name: data
-              mountPath: /data
+              mountPath: /storage
           startupProbe:
             httpGet:
-              path: /minio/health/live
-              port: 9000
+              path: /health
+              port: 8482
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 60
           readinessProbe:
             httpGet:
-              path: /minio/health/ready
-              port: 9000
+              path: /health
+              port: 8482
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /minio/health/live
-              port: 9000
+              path: /health
+              port: 8482
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 6
@@ -99,14 +94,15 @@ spec:
     - metadata:
         name: data
         labels:
-          app: minio
+          app.kubernetes.io/name: vmstorage
+          app.kubernetes.io/part-of: victoriametrics
       spec:
         accessModes:
           - ReadWriteOnce
         storageClassName: local-ssd
         selector:
           matchLabels:
-            local-pv.k8s-ha-lab/component: minio
+            local-pv.k8s-ha-lab/component: vmstorage
         resources:
           requests:
             storage: 100Gi

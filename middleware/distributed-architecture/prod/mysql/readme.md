@@ -6,6 +6,14 @@ MySQL 不建议用普通 StatefulSet 加 `replicas: 3` 来伪装高可用。复�
 
 当前 MySQL Server 版本固定为 `8.0.37`，通过 `spec.version` 指定。
 
+数据卷使用 `local-ssd` 静态 Local PV。部署前需要确认以下目录已在对应节点创建：
+
+```text
+ssd1:/data/local-pv/prod-distributed/mysql-0
+ssd2:/data/local-pv/prod-distributed/mysql-1
+ssd3:/data/local-pv/prod-distributed/mysql-2
+```
+
 ## 部署
 
 ```bash

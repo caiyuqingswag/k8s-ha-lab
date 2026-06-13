@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vmselect-pdb
+  namespace: prod-distributed
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vmselect
+      app.kubernetes.io/part-of: victoriametrics

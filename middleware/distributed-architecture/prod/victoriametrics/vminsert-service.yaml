@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vminsert
+  namespace: prod-distributed
+  labels:
+    app.kubernetes.io/name: vminsert
+    app.kubernetes.io/part-of: victoriametrics
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  selector:
+    app.kubernetes.io/name: vminsert
+    app.kubernetes.io/part-of: victoriametrics
+  ports:
+    - name: http
+      port: 8480
+      targetPort: 8480

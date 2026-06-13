@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vmstorage-pdb
+  namespace: prod-distributed
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vmstorage
+      app.kubernetes.io/part-of: victoriametrics

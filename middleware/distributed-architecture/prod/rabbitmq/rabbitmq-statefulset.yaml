@@ -137,7 +137,10 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn-ha
+        storageClassName: local-ssd
+        selector:
+          matchLabels:
+            local-pv.k8s-ha-lab/component: rabbitmq
         resources:
           requests:
             storage: 50Gi
