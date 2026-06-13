@@ -30,6 +30,7 @@
     src: verdaccio-values.yaml.j2
     dest: "{{ verdaccio_work_dir }}/values.yaml"
     mode: "0600"
+  no_log: true
   when: inventory_hostname == groups['masters'][0]
 
 - name: Check kube-apiserver is reachable

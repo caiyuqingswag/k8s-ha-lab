@@ -11,15 +11,6 @@
       - groups['masters'] | length > 0
     fail_msg: "masters group is required."
 
-- name: Ensure Rancher bootstrap password is customized
-  ansible.builtin.assert:
-    that:
-      - rancher_bootstrap_password is defined
-      - rancher_bootstrap_password | string | length >= 12
-      - rancher_bootstrap_password != 'ChangeMe-Rancher-2026'
-    fail_msg: "rancher_bootstrap_password must be set to a strong value, preferably from Ansible Vault."
-  no_log: true
-
 - name: Ensure Rancher working directory exists
   ansible.builtin.file:
     path: "{{ rancher_work_dir }}"

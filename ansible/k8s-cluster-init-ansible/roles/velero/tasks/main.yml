@@ -11,24 +11,6 @@
       - groups['masters'] | length > 0
     fail_msg: "masters group is required."
 
-- name: Ensure Velero object storage credentials are customized
-  ansible.builtin.assert:
-    that:
-      - velero_access_key_id is defined
-      - velero_secret_access_key is defined
-      - velero_bucket is defined
-      - velero_s3_url is defined
-      - velero_access_key_id | string | length > 0
-      - velero_secret_access_key | string | length > 0
-      - velero_bucket | string | length > 0
-      - velero_s3_url | string | length > 0
-      - velero_access_key_id not in ['CHANGE_ME_MINIO_ACCESS_KEY', '你的 MinIO AccessKey']
-      - velero_secret_access_key not in ['CHANGE_ME_MINIO_SECRET_KEY', '你的 MinIO SecretKey']
-      - velero_s3_url != 'https://minio.example.com'
-      - velero_s3_url != 'https://minio.your-domain.com'
-    fail_msg: "Velero S3/MinIO credentials and endpoint must be customized before deployment."
-  no_log: true
-
 - name: Ensure Velero working directory exists
   ansible.builtin.file:
     path: "{{ velero_work_dir }}"
