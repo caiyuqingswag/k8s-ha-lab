@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: prod-distributed
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    protected-mode no
+    port 6379
+    appendonly yes
+    appendfsync everysec
+    aof-use-rdb-preamble yes
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    save ""
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    tcp-keepalive 300
+    tcp-backlog 511
+    timeout 0
+    databases 16
+    dir /data

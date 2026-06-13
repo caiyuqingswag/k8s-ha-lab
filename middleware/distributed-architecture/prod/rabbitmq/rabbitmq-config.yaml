@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: prod-distributed
+data:
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_peer_discovery_k8s].
+  rabbitmq.conf: |
+    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
+    cluster_formation.k8s.host = kubernetes.default.svc.cluster.local
+    cluster_formation.k8s.address_type = hostname
+    cluster_formation.k8s.hostname_suffix = .rabbitmq-headless.prod-distributed.svc.cluster.local
+    cluster_partition_handling = pause_minority
+    queue_master_locator = min-masters
+    loopback_users.guest = false
+    management.tcp.port = 15672

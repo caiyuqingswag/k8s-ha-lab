@@ -1,108 +1,89 @@
-# 分布式存储方案说明（基于 Longhorn）
+# 分布式架构中间件部署说明
 
-本 README 用于说明当前系统采用 **Longhorn** 作为分布式存储方案的原因与基本架构设计。该方案面向中小规模生产环境，强调 **简单、稳定、易运维、云原生友好**。
+该目录保存面向生产测试环境的高可用中间件部署模板，存储层默认基于 Longhorn。
 
----
+当前目标不是把单体清单简单改成 `replicas: 3`，而是按组件真实的高可用方式来组织：
 
-## 一、方案背景
+- MinIO: 原生分布式模式，4 副本 StatefulSet。
+- RabbitMQ: 3 节点集群，使用 Kubernetes peer discovery。
+- Redis: 1 master + 2 replica + Sentinel，业务侧通过 Sentinel 发现 master。
+- MySQL: 推荐 MySQL Operator / InnoDBCluster，目录中提供 CR 示例。
+- InfluxDB: OSS 1.x/2.x 不支持简单 StatefulSet active-active，高可用需 InfluxDB Enterprise/Cluster 或改用其他时序方案；本目录不提供“假 HA”清单。
 
-本公司当前中间件与业务数据总量不超过 **600GB**，主要组件包括：
+## 镜像版本
 
-* MySQL
-* Redis
-* MinIO
-* InfluxDB
-* RabbitMQ
+当前清单固定使用以下镜像版本，避免 `latest` 标签带来的不可复现：
 
-整体属于**中小规模生产环境**，对存储系统的核心诉求是：
+| 组件 | 镜像 |
+| --- | --- |
+| MySQL | `8.0.37`，通过 InnoDBCluster `spec.version` 指定 |
+| Redis | `redis:8.8.0` |
+| RabbitMQ | `rabbitmq:4.3.1-management` |
+| MinIO | `minio/minio:RELEASE.2025-09-07T16-13-09Z` |
 
-* 稳定可靠
-* 支持多副本
-* 节点故障自动恢复
-* Kubernetes 原生支持
-* 运维成本低
+InfluxDB OSS 未提供 HA 清单；如只做单实例验证，建议固定具体版本，例如 `influxdb:2.9.1`，不要使用 `latest`。
 
-基于以上前提，我们选择使用 **Longhorn 作为分布式存储方案**。
+## 目录结构
 
----
+```text
+middleware/distributed-architecture/
+  prod/
+    namespace.yaml
+    storage/longhorn-storageclass.yaml
+    minio/
+    rabbitmq/
+    redis/
+    mysql/
+    influxdb/
+```
 
-## 二、为什么选择 Longhorn
+## 部署顺序
 
-Longhorn 非常适合以下场景：
+```bash
+kubectl apply -f middleware/distributed-architecture/prod/namespace.yaml
+kubectl apply -f middleware/distributed-architecture/prod/storage/longhorn-storageclass.yaml
+```
 
-* 数据量：< 1TB
-* 集群规模：3–20 台节点
-* 运行环境：Kubernetes
-* 团队规模：中小型团队
-* 无专职存储运维
+然后按组件目录部署：
 
-在该规模下，Ceph 会带来较高的部署复杂度和运维成本，而 Longhorn 能在保证可靠性的同时，显著降低系统复杂度。
+```bash
+kubectl apply -f middleware/distributed-architecture/prod/minio/
+kubectl apply -f middleware/distributed-architecture/prod/rabbitmq/
+kubectl apply -f middleware/distributed-architecture/prod/redis/
+```
 
----
+MySQL 需要先安装 MySQL Operator，再应用 CR：
 
-## 三、Longhorn 的核心能力
+```bash
+kubectl apply -f middleware/distributed-architecture/prod/mysql/mysql-innodbcluster.yaml
+```
 
-Longhorn 提供以下核心能力：
+## StorageClass
 
-* 分布式副本存储
-* 自动副本重建
-* 节点故障自动恢复
-* 强一致性块存储
-* 快照与备份
-* 可视化管理 UI
-* Kubernetes 原生集成
+`prod/storage/longhorn-storageclass.yaml` 定义 `longhorn-ha`：
 
-这些能力已经可以满足中小规模生产环境的高可用需求。  
+- `numberOfReplicas: "3"`
+- `dataLocality: best-effort`
+- `reclaimPolicy: Retain`
+- `allowVolumeExpansion: true`
 
----
+该 StorageClass 适合生产测试环境。正式生产前还需要配置 Longhorn 备份目标、磁盘调度策略、容量告警和快照策略。
 
-## 四、系统中各组件的存储方式
+## 重要边界
 
-| 组件          | 存储方式                      |
-| ----------- | ------------------------- |
-| MySQL       | Longhorn PVC              |
-| Redis (AOF) | Longhorn PVC              |
-| InfluxDB    | Longhorn PVC              |
-| RabbitMQ    | Longhorn PVC              |
-| MinIO       | Longhorn PVC（MinIO 自身多副本） |
+- 多副本 Pod 不等于组件高可用，必须确认组件自身支持集群、复制或故障转移。
+- Redis 的普通客户端不应直连 `redis` Service 写入，建议通过 Sentinel 获取当前 master。
+- MinIO 分布式模式至少 4 个卷，本模板使用 4 副本，每个 Pod 一个 PVC。
+- RabbitMQ 集群依赖稳定 DNS、Erlang cookie 和 peer discovery RBAC。
+- MySQL 推荐通过 Operator 管理复制、故障转移和备份。
+- InfluxDB OSS 不建议在 Kubernetes 里用多个独立 Pod 伪装 HA。
 
----
+## 验证
 
-## 五、部署模式说明
+```bash
+kubectl get pod,svc,pdb -n prod-distributed
+kubectl get pvc -n prod-distributed
+kubectl get sc longhorn-ha
+```
 
-在 Kubernetes 环境中：
-
-* 所有有状态组件通过 PVC 挂载存储
-* PVC 后端统一由 Longhorn 提供
-* 使用 StatefulSet 管理
-* 每个卷默认配置 2–3 副本
-* 支持快照与远程备份
-
-该模式可以保证：
-
-* 单节点宕机不丢数据
-* 自动副本恢复
-* 存储层高可用
-* 运维复杂度可控
-
----
-
-## 六、总结
-
-在当前数据规模（< 600GB）下，采用 Longhorn 作为分布式存储方案，是一个 **工程上合理、成本可控、运维友好** 的选择。
-
-该方案既能满足生产环境的可靠性需求，又避免了过度设计带来的复杂性。
-
----
-
-## 七、适用范围
-
-| 数据规模  | 是否适用 Longhorn |
-| ----- | ------------- |
-| < 1TB | ✅ 非常适合        |
-| 1–3TB | ✅ 适合          |
-| 3–5TB | ⚠ 可用          |
-| 5TB+  | ❌ 不推荐         |
-
----
-
+组件专项验证见各子目录 README。

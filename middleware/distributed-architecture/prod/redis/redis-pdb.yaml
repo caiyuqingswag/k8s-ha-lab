@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: prod-distributed
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: redis

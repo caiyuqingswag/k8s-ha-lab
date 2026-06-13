@@ -1,0 +1,41 @@
+apiVersion: mysql.oracle.com/v2
+kind: InnoDBCluster
+metadata:
+  name: mysql
+  namespace: prod-distributed
+spec:
+  secretName: mysql-root-secret
+  tlsUseSelfSigned: true
+  version: "8.0.37"
+  instances: 3
+  router:
+    instances: 2
+  datadirVolumeClaimTemplate:
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: longhorn-ha
+    resources:
+      requests:
+        storage: 100Gi
+  mycnf: |
+    [mysqld]
+    character-set-server = utf8mb4
+    collation-server = utf8mb4_unicode_ci
+    max_connections = 1000
+    max_allowed_packet = 64M
+    table_open_cache = 2048
+    thread_cache_size = 128
+    innodb_buffer_pool_size = 1G
+    innodb_log_file_size = 256M
+    sql_mode = STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-root-secret
+  namespace: prod-distributed
+type: Opaque
+stringData:
+  rootUser: root
+  rootHost: "%"
+  rootPassword: "CHANGE_ME_MYSQL_ROOT_PASSWORD"
