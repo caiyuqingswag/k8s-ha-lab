@@ -1,0 +1,17 @@
+service:
+  name: aiops-agent
+  mode: dry-run
+
+risk_policy:
+  low:
+    auto_execute: true
+  medium:
+    requires_approval: true
+  high:
+    auto_execute: false
+
+observability:
+  prometheus_url: http://prometheus.example.local
+  loki_url: http://loki.example.local
+  tempo_url: http://tempo.example.local
+  grafana_url: http://grafana.example.local

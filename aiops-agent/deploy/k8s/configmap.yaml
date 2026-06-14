@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aiops-agent-config
+  namespace: aiops
+data:
+  AIOPS_ENV: prod
+  AIOPS_LOG_LEVEL: INFO
+  AIOPS_DRY_RUN: "true"
+  PROMETHEUS_URL: http://prometheus.example.local
+  LOKI_URL: http://loki.example.local
+  TEMPO_URL: http://tempo.example.local
+  GRAFANA_URL: http://grafana.example.local
+  KUBERNETES_MODE: in_cluster
+  DEFAULT_NAMESPACE: default

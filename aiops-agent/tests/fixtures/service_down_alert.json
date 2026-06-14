@@ -1,0 +1,26 @@
+{
+  "receiver": "aiops-agent",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ServiceDown",
+        "severity": "critical",
+        "namespace": "prod-distributed",
+        "service": "order-api"
+      },
+      "annotations": {
+        "summary": "order-api is unavailable",
+        "description": "No healthy endpoint is available for order-api."
+      },
+      "startsAt": "2026-06-14T10:00:00Z",
+      "generatorURL": "http://prometheus.example.local/graph?g0.expr=up"
+    }
+  ],
+  "commonLabels": {
+    "alertname": "ServiceDown",
+    "severity": "critical"
+  },
+  "externalURL": "http://alertmanager.example.local"
+}

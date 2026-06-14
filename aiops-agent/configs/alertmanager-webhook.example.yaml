@@ -1,0 +1,15 @@
+receivers:
+  - name: aiops-agent
+    webhook_configs:
+      - url: http://aiops-agent.aiops.svc.cluster.local:18080/api/v1/alerts
+        send_resolved: true
+
+route:
+  receiver: aiops-agent
+  group_by:
+    - alertname
+    - namespace
+    - service
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
